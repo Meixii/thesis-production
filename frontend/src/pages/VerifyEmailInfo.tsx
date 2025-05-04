@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import { useToast } from '../context/ToastContext';
+import { getApiUrl } from '../utils/api';
 
 const VerifyEmailInfo = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const email = location.state?.email || 'your email';
 
   // Redirect to login if someone navigates here directly without an email
@@ -15,6 +18,28 @@ const VerifyEmailInfo = () => {
       }, 5000);
     }
   }, [location.state, navigate]);
+
+  const handleResendVerification = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/auth/verify-email/resend'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification email');
+      }
+
+      showToast('Verification email has been resent. Please check your inbox.');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to resend verification email');
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-neutral-900 dark:to-neutral-800 px-4">
@@ -35,7 +60,7 @@ const VerifyEmailInfo = () => {
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg">
             <p>Didn't receive the email? Check your spam folder or</p>
             <button
-              onClick={() => { /* Add resend functionality later */ }}
+              onClick={handleResendVerification}
               className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
             >
               Click here to resend

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import Divider from '../components/ui/Divider';
 import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../utils/api';
+import { validatePassword, validateEmail, type PasswordValidation } from '../utils/validation';
 
 interface RegisterFormData {
   firstName: string;
@@ -21,6 +22,15 @@ const Register = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
+    isValid: false,
+    hasMinLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false
+  });
+  const [emailError, setEmailError] = useState('');
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
     middleName: '',
@@ -30,6 +40,19 @@ const Register = () => {
     password: '',
     confirmPassword: ''
   });
+
+  useEffect(() => {
+    if (formData.password) {
+      setPasswordValidation(validatePassword(formData.password));
+    }
+  }, [formData.password]);
+
+  useEffect(() => {
+    if (formData.email) {
+      const validation = validateEmail(formData.email);
+      setEmailError(validation.isValid ? '' : validation.message || '');
+    }
+  }, [formData.email]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -41,6 +64,19 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate email
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.message || 'Invalid email');
+      return;
+    }
+
+    // Validate password
+    if (!passwordValidation.isValid) {
+      setError('Please ensure your password meets all requirements');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -172,18 +208,77 @@ const Register = () => {
               required
               value={formData.email}
               onChange={handleChange}
+              error={emailError ? { field: 'email', message: emailError } : undefined}
             />
 
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              label="Password"
-              autoComplete="new-password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-            />
+            <div className="space-y-4">
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                label="Password"
+                autoComplete="new-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+              />
+
+              <div className="text-sm space-y-2">
+                <p className="font-medium text-gray-700 dark:text-gray-300">Password requirements:</p>
+                <ul className="space-y-1 text-gray-600 dark:text-gray-400">
+                  <li className={`flex items-center ${passwordValidation.hasMinLength ? 'text-green-600 dark:text-green-400' : ''}`}>
+                    <svg className={`h-4 w-4 mr-2 ${passwordValidation.hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {passwordValidation.hasMinLength ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      )}
+                    </svg>
+                    At least 8 characters
+                  </li>
+                  <li className={`flex items-center ${passwordValidation.hasUpperCase ? 'text-green-600 dark:text-green-400' : ''}`}>
+                    <svg className={`h-4 w-4 mr-2 ${passwordValidation.hasUpperCase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {passwordValidation.hasUpperCase ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      )}
+                    </svg>
+                    One uppercase letter
+                  </li>
+                  <li className={`flex items-center ${passwordValidation.hasLowerCase ? 'text-green-600 dark:text-green-400' : ''}`}>
+                    <svg className={`h-4 w-4 mr-2 ${passwordValidation.hasLowerCase ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {passwordValidation.hasLowerCase ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      )}
+                    </svg>
+                    One lowercase letter
+                  </li>
+                  <li className={`flex items-center ${passwordValidation.hasNumber ? 'text-green-600 dark:text-green-400' : ''}`}>
+                    <svg className={`h-4 w-4 mr-2 ${passwordValidation.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {passwordValidation.hasNumber ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      )}
+                    </svg>
+                    One number
+                  </li>
+                  <li className={`flex items-center ${passwordValidation.hasSpecialChar ? 'text-green-600 dark:text-green-400' : ''}`}>
+                    <svg className={`h-4 w-4 mr-2 ${passwordValidation.hasSpecialChar ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {passwordValidation.hasSpecialChar ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      )}
+                    </svg>
+                    One special character (!@#$%^&*(),.?":{}|&lt;&gt;)
+                  </li>
+                </ul>
+              </div>
+            </div>
 
             <Input
               id="confirmPassword"
@@ -194,6 +289,7 @@ const Register = () => {
               required
               value={formData.confirmPassword}
               onChange={handleChange}
+              error={formData.confirmPassword && formData.password !== formData.confirmPassword ? { field: 'confirmPassword', message: 'Passwords do not match' } : undefined}
             />
 
             <Button
@@ -201,6 +297,7 @@ const Register = () => {
               isLoading={isLoading}
               loadingText="Creating account..."
               className="w-full"
+              disabled={!passwordValidation.isValid || Boolean(emailError) || formData.password !== formData.confirmPassword}
             >
               Create account
             </Button>

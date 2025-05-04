@@ -182,6 +182,19 @@ Update #1
 
 ## Frontend
 
+Update #37
+- Enhanced registration form validation and user feedback:
+  - Added dynamic password validation with real-time feedback
+  - Added visual indicators for password requirements
+  - Restricted email registration to common providers only
+  - Added real-time email validation
+  - Improved validation error messages
+  - Added toast notifications for email verification resend
+  - Enhanced form submission validation
+  - Added visual checkmarks for completed password requirements
+  - Improved button disabled states based on validation
+  - Added proper error handling for invalid inputs
+
 Update #36
 - Improved visibility in VerifyEmailInfo page:
   - Enhanced text contrast for better readability

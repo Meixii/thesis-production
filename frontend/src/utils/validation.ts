@@ -3,37 +3,71 @@ export interface ValidationError {
   message: string;
 }
 
-export const validateEmail = (email: string): ValidationError | null => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email) {
-    return { field: 'email', message: 'Email is required' };
-  }
-  if (!emailRegex.test(email)) {
-    return { field: 'email', message: 'Please enter a valid email address' };
-  }
-  return null;
+// Password validation rules
+export const passwordRules = {
+  minLength: 8,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumber: true,
+  requireSpecial: true
 };
 
-export const validatePassword = (password: string): ValidationError | null => {
-  if (!password) {
-    return { field: 'password', message: 'Password is required' };
+export interface PasswordValidation {
+  isValid: boolean;
+  hasMinLength: boolean;
+  hasUpperCase: boolean;
+  hasLowerCase: boolean;
+  hasNumber: boolean;
+  hasSpecialChar: boolean;
+}
+
+export const validatePassword = (password: string): PasswordValidation => {
+  return {
+    hasMinLength: password.length >= passwordRules.minLength,
+    hasUpperCase: /[A-Z]/.test(password),
+    hasLowerCase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    isValid: 
+      password.length >= passwordRules.minLength &&
+      /[A-Z]/.test(password) &&
+      /[a-z]/.test(password) &&
+      /[0-9]/.test(password) &&
+      /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  };
+};
+
+// Common email providers
+const commonEmailProviders = [
+  'gmail.com',
+  'yahoo.com',
+  'outlook.com',
+  'hotmail.com',
+  'aol.com',
+  'icloud.com',
+  'protonmail.com',
+  'zoho.com',
+  'mail.com',
+  'ymail.com'
+];
+
+export const validateEmail = (email: string): { isValid: boolean; message?: string } => {
+  // Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { isValid: false, message: 'Please enter a valid email address' };
   }
-  if (password.length < 8) {
-    return { field: 'password', message: 'Password must be at least 8 characters long' };
+
+  // Check if the email provider is in our allowed list
+  const domain = email.split('@')[1].toLowerCase();
+  if (!commonEmailProviders.includes(domain)) {
+    return { 
+      isValid: false, 
+      message: 'Please use a common email provider (e.g., Gmail, Yahoo, Outlook)' 
+    };
   }
-  if (!/[A-Z]/.test(password)) {
-    return { field: 'password', message: 'Password must contain at least one uppercase letter' };
-  }
-  if (!/[a-z]/.test(password)) {
-    return { field: 'password', message: 'Password must contain at least one lowercase letter' };
-  }
-  if (!/[0-9]/.test(password)) {
-    return { field: 'password', message: 'Password must contain at least one number' };
-  }
-  if (!/[!@#$%^&*]/.test(password)) {
-    return { field: 'password', message: 'Password must contain at least one special character (!@#$%^&*)' };
-  }
-  return null;
+
+  return { isValid: true };
 };
 
 export const validateName = (name: string, field: string): ValidationError | null => {
