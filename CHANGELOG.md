@@ -182,6 +182,18 @@ Update #1
 
 ## Frontend
 
+Update #36
+- Improved visibility in VerifyEmailInfo page:
+  - Enhanced text contrast for better readability
+  - Added proper background gradient for better visual appeal
+  - Updated text colors to use Tailwind's standard gray and blue palette
+  - Improved dark mode support with better color combinations
+  - Enhanced the "Return to Login" button with more prominent styling
+  - Added a subtle background to the "Didn't receive email" section
+  - Increased icon size for better visibility
+  - Added consistent footer to match other pages
+  - Improved overall spacing and visual hierarchy
+
 Update #35
 - Enhanced registration form with complete name fields:
   - Added middle name field to the registration form
