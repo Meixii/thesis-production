@@ -1,6 +1,12 @@
 # CHANGELOG for Thesis Production Funds App
 
-## Backend
+## Backend 
+<!-- (Always make the recent update after this) -->
+
+Update #21
+- Removed local storage upload fallback for payment receipts; all uploads now use Cloudinary.
+- Updated Cloudinary file naming convention for better organization and traceability.
+- In progress: Working to fix the Student Dashboard "Current Week Status" so payment status accurately reflects recent payments.
 
 Update #20
 - Added loan management functionality:
@@ -177,10 +183,11 @@ Update #1
 - Created login endpoint with PostgreSQL integration
 - Set up database connection and configuration
 - Added middleware for authentication
-
+<!-- (Do not put any recent updates below here) -->
 ---
 
 ## Frontend
+<!-- (Always make the recent update after this) -->
 
 Update #37
 - Enhanced registration form validation and user feedback:
@@ -567,7 +574,7 @@ Update #1
 - Implemented user authentication flow
 - Added loading and error states for login
 - Styled login page with Tailwind CSS
-
+<!-- (Do not put any recent updates below here) -->
 ---
 
 ## README.md

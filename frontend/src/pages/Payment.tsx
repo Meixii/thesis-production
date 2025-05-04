@@ -14,6 +14,8 @@ interface PaymentDetails {
   receipt?: File;
 }
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
 const Payment = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -25,9 +27,11 @@ const Payment = () => {
     method: 'gcash'
   });
   const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState('');
+  const [currentWeekStatus, setCurrentWeekStatus] = useState<string>('');
   const qrImageRef = useRef<HTMLImageElement>(null);
 
-  // Check if user belongs to a group
+  // Check if user belongs to a group and fetch current week status
   useEffect(() => {
     const checkUserGroup = async () => {
       setLoading(true);
@@ -48,6 +52,8 @@ const Payment = () => {
           const data = await response.json();
           if (!data.success || !data.data || !data.data.group) {
             setNoGroupError(true);
+          } else {
+            setCurrentWeekStatus(data.data.currentWeek.status);
           }
         } else {
           // Handle error
@@ -72,9 +78,21 @@ const Payment = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError('');
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        setFileError('File too large (max 5MB)');
+        setFile(null);
+        return;
+      }
+      setFile(selectedFile);
     }
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    setFileError('');
   };
 
   const handleDownloadQR = () => {
@@ -105,6 +123,7 @@ const Payment = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setFileError('');
 
     try {
       const token = localStorage.getItem('token');
@@ -134,7 +153,13 @@ const Payment = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit payment');
+        // Check for file size error from backend
+        if (data.error && data.error.toLowerCase().includes('file too large')) {
+          setFileError('File too large (max 5MB)');
+        } else {
+          setError(data.error || 'Failed to submit payment');
+        }
+        return;
       }
 
       // Redirect to dashboard with success message
@@ -171,6 +196,40 @@ const Payment = () => {
                 Back to Dashboard
               </Button>
             </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // If payment is already made or pending verification, show message and do not show form
+  if (currentWeekStatus === 'pending_verification') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-neutral-900 dark:to-neutral-800 px-4">
+        <Card className="w-full max-w-md bg-white dark:bg-neutral-800 shadow-lg p-8 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <svg className="w-12 h-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className="text-xl font-semibold text-yellow-700 dark:text-yellow-300">Payment Pending Verification</h2>
+            <p className="text-gray-700 dark:text-gray-300">Your payment for this week is being verified. Please wait for confirmation before making another payment.</p>
+            <Button onClick={() => navigate('/dashboard/student')} className="mt-4">Back to Dashboard</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  if (currentWeekStatus === 'paid') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-neutral-900 dark:to-neutral-800 px-4">
+        <Card className="w-full max-w-md bg-white dark:bg-neutral-800 shadow-lg p-8 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <h2 className="text-xl font-semibold text-green-700 dark:text-green-300">Payment Complete</h2>
+            <p className="text-gray-700 dark:text-gray-300">You have already paid for this week. Thank you!</p>
+            <Button onClick={() => navigate('/dashboard/student')} className="mt-4">Back to Dashboard</Button>
           </div>
         </Card>
       </div>
@@ -302,12 +361,22 @@ const Payment = () => {
                       </label>
                     </div>
                     {file && (
-                      <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 flex items-center">
+                      <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 flex items-center space-x-2">
                         <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                         </svg>
-                        {file.name}
+                        <span>{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={handleRemoveFile}
+                          className="ml-2 px-2 py-1 text-xs rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
+                        >
+                          Remove
+                        </button>
                       </div>
+                    )}
+                    {fileError && (
+                      <div className="mt-2 text-sm text-red-600 dark:text-red-400">{fileError}</div>
                     )}
                   </div>
                 </div>

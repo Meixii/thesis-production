@@ -1,7 +1,4 @@
 const cloudinary = require('cloudinary').v2;
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -36,56 +33,7 @@ const formatDateForFilename = (date = new Date()) => {
 const generateReceiptFilename = (lastName, paymentMethod, date = new Date()) => {
   const formattedDate = formatDateForFilename(date);
   const sanitizedLastName = lastName.replace(/\s+/g, '');
-  return `${sanitizedLastName}_${formattedDate}_${paymentMethod.toUpperCase()}`;
-};
-
-/**
- * Save a file to local storage as a fallback
- * @param {Object} file - The file object from multer
- * @param {Object} metadata - Additional metadata (user, payment method, etc.)
- * @returns {Promise<Object>} - Local storage metadata
- */
-const saveToLocalStorage = async (file, metadata = {}) => {
-  try {
-    const uploadsDir = path.join(__dirname, '../../uploads/receipts');
-    
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    // Generate descriptive filename if metadata provided, otherwise fallback to hash
-    let filename;
-    if (metadata.lastName && metadata.paymentMethod) {
-      const baseFilename = generateReceiptFilename(
-        metadata.lastName,
-        metadata.paymentMethod
-      );
-      const extension = path.extname(file.originalname) || '.jpg';
-      filename = `${baseFilename}${extension}`;
-    } else {
-      // Fallback to hash-based filename
-      const hash = crypto.createHash('md5').update(Date.now().toString()).digest('hex');
-      filename = `${hash}-${file.originalname.replace(/\s+/g, '-')}`;
-    }
-    
-    const filepath = path.join(uploadsDir, filename);
-    
-    // Write file
-    fs.writeFileSync(filepath, file.buffer);
-    
-    // Return metadata similar to Cloudinary
-    return {
-      secure_url: `/uploads/receipts/${filename}`,
-      public_id: filename.replace(path.extname(filename), ''),
-      format: path.extname(file.originalname).substring(1) || 'jpg',
-      resource_type: file.mimetype.split('/')[0],
-      original_filename: filename
-    };
-  } catch (error) {
-    console.error('Local storage error:', error);
-    throw new Error('Failed to save file locally');
-  }
+  return `payment_${sanitizedLastName}_${paymentMethod.toUpperCase()}_${formattedDate}`;
 };
 
 /**
@@ -110,17 +58,14 @@ const uploadToCloudinaryUnsigned = async (file, metadata = {}) => {
 
     // Set options according to the preset configuration
     const uploadOptions = {
-      public_id: `thesis-finance/receipts/${fileName}`,
+      public_id: `payments/${fileName}`,
       resource_type: 'auto',
-      // Removed display_name as it's not allowed in unsigned uploads
-      // Note: No need to set use_filename, unique_filename, or overwrite as they're
-      // already configured in the upload preset
     };
 
     // Upload to Cloudinary using the unsigned upload preset
     const result = await cloudinary.uploader.unsigned_upload(
       dataURI, 
-      'thesis_finance_receipts', // Use the exact preset name you created
+      'thesis_finance_receipts',
       uploadOptions
     );
 
@@ -153,12 +98,12 @@ const uploadToCloudinary = async (file, metadata = {}) => {
       // Generate a descriptive public_id if metadata provided
       let publicId;
       if (metadata.lastName && metadata.paymentMethod) {
-        publicId = `thesis-finance/receipts/${generateReceiptFilename(
+        publicId = `payments/${generateReceiptFilename(
           metadata.lastName,
           metadata.paymentMethod
         )}`;
       } else {
-        publicId = `thesis-finance/receipts/${Date.now()}`;
+        publicId = `payments/${Date.now()}`;
       }
 
       // Upload to Cloudinary with timestamp
@@ -178,17 +123,7 @@ const uploadToCloudinary = async (file, metadata = {}) => {
         apiKey: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Not set',
         apiSecret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Not set',
       });
-      
-      // Try local storage as last fallback
-      console.log('Attempting local storage fallback...');
-      try {
-        const localResult = await saveToLocalStorage(file, metadata);
-        console.log('Successfully saved file locally');
-        return localResult;
-      } catch (localError) {
-        console.error('Local storage fallback failed:', localError);
-        throw new Error('Failed to upload file: All storage methods failed');
-      }
+      throw new Error('Failed to upload file: All Cloudinary upload methods failed');
     }
   }
 };

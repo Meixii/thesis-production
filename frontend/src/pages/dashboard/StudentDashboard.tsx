@@ -33,7 +33,7 @@ interface DashboardData {
   currentWeek: {
     startDate: string;
     endDate: string;
-    status: 'paid' | 'unpaid' | 'late';
+    status: 'paid' | 'unpaid' | 'late' | 'pending_verification';
     amountPaid: number;
     amountDue: number;
     penalty: number;
@@ -338,8 +338,16 @@ const StudentDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Current Week Status"
-                value={dashboardData.currentWeek.status.toUpperCase()}
-                status={dashboardData.currentWeek.status === 'paid' ? 'success' : dashboardData.currentWeek.status === 'late' ? 'error' : 'warning'}
+                value={dashboardData.currentWeek.status === 'pending_verification' ? 'Verifying' : dashboardData.currentWeek.status.toUpperCase()}
+                status={
+                  dashboardData.currentWeek.status === 'paid'
+                    ? 'success'
+                    : dashboardData.currentWeek.status === 'late'
+                    ? 'error'
+                    : dashboardData.currentWeek.status === 'pending_verification'
+                    ? 'info'
+                    : 'warning'
+                }
                 icon={
                   dashboardData.currentWeek.status === 'paid' ? (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,6 +356,10 @@ const StudentDashboard = () => {
                   ) : dashboardData.currentWeek.status === 'late' ? (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : dashboardData.currentWeek.status === 'pending_verification' ? (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   ) : (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
