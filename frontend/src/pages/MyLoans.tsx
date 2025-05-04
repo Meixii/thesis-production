@@ -4,7 +4,6 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Navigation from '../components/ui/Navigation';
 import { getApiUrl } from '../utils/api';
-import { useToast } from '../context/ToastContext';
 
 interface Loan {
   id: number;
@@ -20,7 +19,6 @@ interface Loan {
 
 const MyLoans = () => {
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
