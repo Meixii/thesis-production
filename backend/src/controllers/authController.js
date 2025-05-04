@@ -189,10 +189,12 @@ const getProfile = async (req, res) => {
   try {
     const result = await db.query(
       `SELECT 
-        id, email, first_name, middle_name, last_name, suffix,
-        role, group_id, profile_picture_url, email_verified
-       FROM users 
-       WHERE id = $1`,
+        u.id, u.email, u.first_name, u.middle_name, u.last_name, u.suffix,
+        u.role, u.group_id, u.profile_picture_url, u.email_verified,
+        g.group_name
+       FROM users u
+       LEFT JOIN groups g ON u.group_id = g.id
+       WHERE u.id = $1`,
       [req.user.userId]
     );
 
@@ -210,6 +212,7 @@ const getProfile = async (req, res) => {
       suffix: user.suffix,
       role: user.role,
       groupId: user.group_id,
+      groupName: user.group_name,
       profilePictureUrl: user.profile_picture_url,
       emailVerified: user.email_verified
     });

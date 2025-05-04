@@ -88,15 +88,15 @@
 ## IV. Finance Coordinator (FC) Features
 
 ### A. Dashboard
-- [ ] **Backend:** API endpoint for FC dashboard data (`/api/groups/:groupId/dashboard`).
-    - [ ] Count of members unpaid for the current week.
-    - [ ] Total collected funds (sum of verified payments).
-    - [ ] Total recorded expenses.
-    - [ ] Calculate available balance (Collected - Expenses - Disbursed Loans + Repaid Loans?). *Refine calculation*.
-    - [ ] Budget goal amount.
-- [ ] **Frontend:** Create FC Dashboard UI.
-- [ ] **Frontend:** Display key group stats (unpaid count, collected, expenses, available, goal).
-- [ ] **Frontend:** (Optional) Display simple charts/visualizations.
+- [x] **Backend:** API endpoint for FC dashboard data (`/api/groups/:groupId/dashboard`).
+    - [x] Count of members unpaid for the current week.
+    - [x] Total collected funds (sum of verified payments).
+    - [x] Total recorded expenses.
+    - [x] Calculate available balance (Collected - Expenses - Disbursed Loans + Repaid Loans?). *Refine calculation*.
+    - [x] Budget goal amount.
+- [x] **Frontend:** Create FC Dashboard UI.
+- [x] **Frontend:** Display key group stats (unpaid count, collected, expenses, available, goal).
+- [x] **Frontend:** (Optional) Display simple charts/visualizations.
 
 ### B. Member Management & Overview
 - [ ] **Backend:** API endpoint to get all members in the FC's group (`/api/groups/:groupId/members`). Include summary payment/loan status per member.

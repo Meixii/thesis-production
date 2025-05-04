@@ -3,6 +3,22 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #23
+- Added group code management for Finance Coordinators:
+  - Created regenerateGroupCode function for generating new group invitation codes
+  - Added dedicated endpoint for FC users to regenerate group codes
+  - Implemented secure code generation with uniqueness check
+  - Added role-based access control to prevent unauthorized code regeneration
+  - Enhanced group management capabilities for Finance Coordinators
+
+Update #22
+- Enhanced profile API with group information:
+  - Updated getProfile function to include group_name in user profile response
+  - Added LEFT JOIN with groups table to fetch group details
+  - Added proper field mapping for group information
+  - Improved error handling for missing group data
+  - Added new getGroupDashboard API endpoint for Finance Coordinator dashboard
+
 Update #21
 - Removed local storage upload fallback for payment receipts; all uploads now use Cloudinary.
 - Updated Cloudinary file naming convention for better organization and traceability.
@@ -188,6 +204,50 @@ Update #1
 
 ## Frontend
 <!-- (Always make the recent update after this) -->
+
+Update #41
+- Implemented role-specific Profile pages:
+  - Created different UI views for Finance Coordinators and Students
+  - Added Finance Coordinator-specific tools section
+  - Implemented group code regeneration feature for FCs
+  - Added quick access buttons to FC-specific functionality
+  - Customized messaging and instructions based on user role
+  - Enhanced navigation with explicit role specification
+  - Improved visual hierarchy for role-specific features
+  - Added more FC-specific group management options
+
+Update #40
+- Fixed Profile page group information display:
+  - Enhanced group name display in Profile component
+  - Implemented automatic group fetching when groupName is missing
+  - Added fallback mechanism for different API response structures
+  - Added additional error handling for group data fetching
+  - Improved handling of field name inconsistencies between API and frontend
+  - Added support for various backend group name field formats (group_name, name)
+
+Update #39
+- Fixed Finance Coordinator dashboard login issues:
+  - Enhanced data retrieval robustness to handle different API response structures
+  - Added multiple fallback mechanisms for user role and group ID detection
+  - Improved Login component to handle different response formats
+  - Added comprehensive error handling and debugging capabilities
+  - Fixed "userData.data is undefined" error in FC dashboard
+  - Ensured mock data is displayed even when API endpoints are not yet implemented
+  - Added explicit userRole specification in Navigation component
+  - Enhanced error messages and UI feedback
+  - Improved role detection with support for variations in role names
+
+Update #38
+- Added Finance Coordinator dashboard with visualization features:
+  - Created a dedicated FC Dashboard page with role-specific components
+  - Implemented custom SimpleBarChart for weekly collections visualization
+  - Added SimplePieChart for expense breakdown visualization
+  - Added budget progress tracking with visual indicators
+  - Enhanced Navigation component with role-based menu items
+  - Added dashboard route for finance coordinators (/dashboard/fc)
+  - Implemented smart dashboard routing based on user roles
+  - Improved Login component to redirect users to appropriate dashboard
+  - Added mock data structure for FC stats display
 
 Update #37
 - Enhanced registration form validation and user feedback:

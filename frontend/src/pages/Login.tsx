@@ -44,7 +44,7 @@ const Login = () => {
       if (!response.ok) {
         // Handle specific error cases with clearer messages
         if (response.status === 401) {
-          if (data.error.includes('verify your email')) {
+          if (data.error?.includes('verify your email')) {
             throw new Error('Please verify your email address before logging in');
           } else {
             throw new Error('Invalid email or password');
@@ -54,8 +54,32 @@ const Login = () => {
       }
 
       localStorage.setItem('token', data.token);
-      showToast('Logged in successfully!', 'success');
-      navigate('/dashboard/student');
+      
+      // Determine the user role from the response data (handle different API structures)
+      let userRole = 'student'; // Default role
+      
+      // Log response for debugging
+      console.log('Login response:', data);
+      
+      // Try different possible API response structures
+      if (data.user?.role) {
+        userRole = data.user.role.toLowerCase();
+      } else if (data.data?.user?.role) {
+        userRole = data.data.user.role.toLowerCase();
+      } else if (data.data?.role) {
+        userRole = data.data.role.toLowerCase();
+      } else if (data.role) {
+        userRole = data.role.toLowerCase();
+      }
+      
+      // Handle various formats of role string
+      if (userRole === 'finance_coordinator' || userRole === 'fc' || userRole === 'finance coordinator') {
+        showToast('Logged in as Finance Coordinator', 'success');
+        navigate('/dashboard/fc');
+      } else {
+        showToast('Logged in successfully!', 'success');
+        navigate('/dashboard/student');
+      }
     } catch (err) {
       // Handle the specific "Illegal arguments" error that appears when email doesn't exist
       if (err instanceof Error && err.message.includes('Illegal arguments: string, object')) {
