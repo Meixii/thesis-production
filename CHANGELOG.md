@@ -68,6 +68,13 @@ Update #1
 
 ## Frontend
 
+Update #7
+- Fixed URL construction in getApiUrl utility:
+  - Added proper protocol handling
+  - Fixed domain construction for SSO redirects
+  - Added trailing slash handling
+  - Created Postman collection for API testing
+
 Update #6
 - Improved API URL handling:
   - Created new utility function getApiUrl for consistent URL construction

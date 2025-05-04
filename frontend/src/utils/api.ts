@@ -4,10 +4,18 @@
  * @returns The complete API URL
  */
 export const getApiUrl = (path: string): string => {
-  const baseUrl = import.meta.env.VITE_BACKEND_URL || '';
-  // Ensure baseUrl starts with https:// if not already
-  const fullBaseUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
-  // Ensure path starts with /
+  let baseUrl = import.meta.env.VITE_BACKEND_URL || '';
+  
+  // Remove trailing slashes from baseUrl
+  baseUrl = baseUrl.replace(/\/+$/, '');
+
+  // Add https:// if no protocol is specified
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = `https://${baseUrl}`;
+  }
+
+  // Ensure path starts with / and remove any extra slashes
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${fullBaseUrl}${normalizedPath}`;
+  
+  return `${baseUrl}${normalizedPath}`;
 }; 
