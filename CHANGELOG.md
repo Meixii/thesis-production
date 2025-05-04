@@ -3,7 +3,29 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #22
+- Enhanced password reset functionality:
+  - Improved password reset email template with modern design
+  - Added better error handling for token validation
+  - Enhanced security with more robust token generation
+  - Added proper response messages for better UX
+  - Improved email content with clear instructions
+  - Added responsive email design for mobile devices
+  - Included fallback text link in case button doesn't work
+  - Enhanced database queries with better error handling
+  - Added personalization to email with user's name when available
+
 Update #21
+- Added password reset functionality:
+  - Created forgot-password endpoint to send reset email
+  - Implemented token verification endpoint for reset links
+  - Added reset-password endpoint to update user passwords
+  - Enhanced database schema with reset token fields
+  - Integrated with existing email system
+  - Added proper security measures for token handling
+  - Implemented comprehensive error handling
+  - Added rate limiting for password reset requests
+
 - Removed local storage upload fallback for payment receipts; all uploads now use Cloudinary.
 - Updated Cloudinary file naming convention for better organization and traceability.
 - In progress: Working to fix the Student Dashboard "Current Week Status" so payment status accurately reflects recent payments.
@@ -188,6 +210,45 @@ Update #1
 
 ## Frontend
 <!-- (Always make the recent update after this) -->
+
+Update #40
+- Enhanced password reset UI with modern design:
+  - Redesigned ResetPassword page to match registration UI
+  - Added interactive password validation with visual cues
+  - Implemented password strength requirements with live validation
+  - Added visual checkmarks for completed requirements
+  - Enhanced user feedback with clear error messages
+  - Improved token verification flow with better error handling
+  - Added loading states during API interactions
+  - Implemented automatic redirect after successful password reset
+  - Enhanced "Forgot your password?" link visibility on login page
+  - Added consistent "Made by Zen Garden" footer to maintain brand identity
+  - Improved overall spacing and visual hierarchy
+
+Update #39
+- Added password reset UI:
+  - Created ForgotPassword page with email submission form
+  - Implemented ResetPassword page with token validation
+  - Added secure password update functionality
+  - Enhanced form validation for password reset
+  - Improved user feedback with clear success/error messages
+  - Added loading states during API interactions
+  - Implemented automatic redirect after successful password reset
+  - Added link to forgot password page from login screen
+  - Added password confirmation validation
+  - Enhanced security with proper token verification
+  - Maintained consistent styling with application design
+
+Update #38
+- Added password reset UI:
+  - Created ForgotPassword page with email submission form
+  - Implemented ResetPassword page with token validation
+  - Added secure password update functionality
+  - Enhanced form validation for password reset
+  - Improved user feedback with clear success/error messages
+  - Added loading states during API interactions
+  - Implemented automatic redirect after successful password reset
+  - Added link to forgot password page from login screen
 
 Update #37
 - Enhanced registration form validation and user feedback:

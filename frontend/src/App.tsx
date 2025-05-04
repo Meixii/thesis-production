@@ -8,6 +8,8 @@ import VerifyEmailInfo from './pages/VerifyEmailInfo';
 import Payment from './pages/Payment';
 import LoanRequest from './pages/LoanRequest';
 import MyLoans from './pages/MyLoans';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import { ToastProvider } from './context/ToastContext';
 import './App.css';
 
@@ -25,6 +27,8 @@ function App() {
           <Route path="/payment" element={<Payment />} />
           <Route path="/loans/request" element={<LoanRequest />} />
           <Route path="/loans/my-loans" element={<MyLoans />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
           {/* Add more routes here later */}
         </Routes>
