@@ -5,7 +5,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import SocialButton from '../components/ui/SocialButton';
 import Divider from '../components/ui/Divider';
-import { validateEmail, validatePassword, ValidationError } from '../utils/validation';
+import { ValidationError } from '../utils/validation';
 
 interface LoginForm {
   email: string;
