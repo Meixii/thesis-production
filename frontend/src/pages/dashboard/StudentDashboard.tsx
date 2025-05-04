@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../../utils/api';
 
 interface UserProfile {
   id: number;
@@ -31,7 +32,7 @@ const StudentDashboard = () => {
           return;
         }
 
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/profile`, {
+        const response = await fetch(getApiUrl('/api/auth/profile'), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -65,7 +66,7 @@ const StudentDashboard = () => {
     setVerifyLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/verify-email/resend`, {
+      const response = await fetch(getApiUrl('/api/auth/verify-email/resend'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

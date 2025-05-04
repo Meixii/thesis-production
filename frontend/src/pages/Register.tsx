@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import SocialButton from '../components/ui/SocialButton';
 import Divider from '../components/ui/Divider';
 import { validateEmail, validatePassword, validateName, validateConfirmPassword, ValidationError } from '../utils/validation';
+import { getApiUrl } from '../utils/api';
 
 interface RegisterForm {
   firstName: string;
@@ -75,7 +76,7 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
+      const response = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +112,7 @@ const Register = () => {
 
   const handleSSOLogin = async (provider: 'facebook' | 'google') => {
     try {
-      window.location.href = `${import.meta.env.VITE_BACKEND_URL}/api/auth/${provider}`;
+      window.location.href = getApiUrl(`/api/auth/${provider}`);
     } catch (err) {
       setServerError('Failed to initialize SSO login');
     }

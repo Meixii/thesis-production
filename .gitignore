@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .cursor/rules/kaizen.mdc
 backend/.env
-frontend/.env
+frontend/.env.production
+frontend/.env.local
 .cursor/rules/thesis.mdc
 backend/src/config/schema.sql

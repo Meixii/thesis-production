@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import { getApiUrl } from '../utils/api';
 
 const VerifyEmail = () => {
   const { token } = useParams();
@@ -11,7 +12,7 @@ const VerifyEmail = () => {
   useEffect(() => {
     const verify = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/verify-email/${token}`);
+        const response = await fetch(getApiUrl(`/api/auth/verify-email/${token}`));
         const data = await response.json();
         if (response.ok) {
           setStatus('success');

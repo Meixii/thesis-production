@@ -68,6 +68,14 @@ Update #1
 
 ## Frontend
 
+Update #6
+- Improved API URL handling:
+  - Created new utility function getApiUrl for consistent URL construction
+  - Added automatic HTTPS protocol handling for production URLs
+  - Fixed SSO authentication URL construction
+  - Updated all components to use the new URL utility
+  - Fixed undefined URL issues in SSO redirects
+
 Update #5
 - Updated all fetch calls to use environment variable for backend URL:
   - Modified Login.tsx to use VITE_BACKEND_URL
