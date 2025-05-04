@@ -4,21 +4,54 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Main brand colors
+        // Main brand colors with expanded palette for accessibility and clarity
         primary: {
-          DEFAULT: '#032F30',
-          dark: '#031716',
-          light: '#0C969C',
+          50:  '#e6f6f7',
+          100: '#b3e6e8',
+          200: '#80d6d9',
+          300: '#4dc6ca',
+          400: '#1ab6bb',
+          500: '#0C969C',   // main
+          600: '#06787b',
+          700: '#032F30',   // dark
+          800: '#031716',
+          900: '#011010',
         },
         secondary: {
-          DEFAULT: '#6BA3BE',
-          dark: '#274D60',
-          light: '#8FBDD3',
+          50:  '#f2f8fa',
+          100: '#d6eaf2',
+          200: '#b9dceb',
+          300: '#9ccfe3',
+          400: '#80c1db',
+          500: '#6BA3BE',   // main
+          600: '#4e7e97',
+          700: '#274D60',   // dark
+          800: '#1a3440',
+          900: '#10212a',
         },
         accent: {
-          DEFAULT: '#0C969C',
-          dark: '#0A7075',
-          light: '#10BCC3',
+          50:  '#e6fcfc',
+          100: '#b3f3f5',
+          200: '#80eaee',
+          300: '#4de1e7',
+          400: '#1ad8e0',
+          500: '#10BCC3',   // light
+          600: '#0C969C',   // main
+          700: '#0A7075',   // dark
+          800: '#075357',
+          900: '#04393b',
+        },
+        neutral: {
+          50:  '#fafbfc',
+          100: '#f4f5f7',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
+          900: '#111827',
         },
         // Semantic colors
         success: {
@@ -84,6 +117,15 @@ module.exports = {
         'lg': '1024px',
         'xl': '1280px',
         '2xl': '1536px',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.3s ease-in-out',
       },
     },
   },

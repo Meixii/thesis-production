@@ -3,7 +3,7 @@ const router = express.Router();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const { login, register, verifyEmail, getProfile, resendVerificationEmail } = require('../controllers/authController');
-const authenticateToken = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 // Regular auth routes
 router.post('/login', login);

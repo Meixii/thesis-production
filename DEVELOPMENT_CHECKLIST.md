@@ -39,13 +39,13 @@
 ## III. Student User Features
 
 ### A. Dashboard
-- [ ] **Backend:** API endpoint to get student's dashboard data (payment status for current week, total balance/late fees, total contribution, active loan status).
-- [ ] **Frontend:** Create Student Dashboard UI.
-- [ ] **Frontend:** Display current week's payment status (Paid / Unpaid / Late).
-- [ ] **Frontend:** Display total outstanding balance (sum of unpaid contributions + penalties).
-- [ ] **Frontend:** Display total amount contributed historically.
-- [ ] **Frontend:** Display current active loan amount (if any).
-- [ ] **Frontend:** Implement "Pay Now" button/link.
+- [x] **Backend:** API endpoint to get student's dashboard data (payment status for current week, total balance/late fees, total contribution, active loan status).
+- [x] **Frontend:** Create Student Dashboard UI.
+- [x] **Frontend:** Display current week's payment status (Paid / Unpaid / Late).
+- [x] **Frontend:** Display total outstanding balance (sum of unpaid contributions + penalties).
+- [x] **Frontend:** Display total amount contributed historically.
+- [x] **Frontend:** Display current active loan amount (if any).
+- [x] **Frontend:** Implement "Pay Now" button/link.
 
 ### B. Payment Process
 - [ ] **Frontend:** Create Payment initiation UI/modal.

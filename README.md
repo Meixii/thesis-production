@@ -85,7 +85,8 @@ CREATE TABLE groups (
     -- Max loan this group can lend out OR borrow in total (decide scope)
     max_inter_loan_limit NUMERIC(10, 2) DEFAULT 500.00,
     intra_loan_flat_fee NUMERIC(10, 2) DEFAULT 10.00, -- Configurable fee
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    group_code VARCHAR(10) UNIQUE NOT NULL
 );
 
 -- Table for Users (Students/Finance Coordinators)

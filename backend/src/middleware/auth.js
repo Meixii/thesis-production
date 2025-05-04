@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const auth = async (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
@@ -16,4 +16,18 @@ const auth = async (req, res, next) => {
   }
 };
 
-module.exports = auth; 
+const isFinanceCoordinator = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Access denied. Finance Coordinator role required.' });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Server error while checking role.' });
+  }
+};
+
+module.exports = {
+  authenticateToken,
+  isFinanceCoordinator
+}; 

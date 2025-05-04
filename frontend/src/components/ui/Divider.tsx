@@ -1,23 +1,20 @@
-import React from 'react';
+import { ReactNode } from 'react';
 
 interface DividerProps {
-  text?: string;
+  children?: ReactNode;
   className?: string;
 }
 
-const Divider: React.FC<DividerProps> = ({
-  text,
-  className = ''
-}) => {
+const Divider: React.FC<DividerProps> = ({ children, className = '' }) => {
   return (
     <div className={`relative ${className}`}>
       <div className="absolute inset-0 flex items-center">
-        <div className="w-full border-t border-secondary-light"></div>
+        <div className="w-full border-t border-neutral-200 dark:border-neutral-700" />
       </div>
-      {text && (
+      {children && (
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-background-primary text-text-tertiary">
-            {text}
+          <span className="px-2 text-text-tertiary dark:text-neutral-400 bg-white dark:bg-neutral-800">
+            {children}
           </span>
         </div>
       )}

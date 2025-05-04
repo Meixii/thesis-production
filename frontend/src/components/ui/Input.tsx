@@ -6,23 +6,24 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: ValidationError | null;
   helperText?: string;
   containerClassName?: string;
+  labelClassName?: string;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, containerClassName = '', className = '', type, ...props }, ref) => {
+  ({ label, error, helperText, containerClassName = '', className = '', labelClassName = '', type, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
-    const baseInputClasses = 'mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-text-tertiary focus:outline-none focus:ring-2 sm:text-sm transition-colors duration-200';
-    const validClasses = 'border-secondary-light focus:ring-primary focus:border-primary';
-    const errorClasses = 'border-error-dark focus:ring-error focus:border-error bg-error-light/5';
+    const baseInputClasses = 'mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 sm:text-sm transition-colors duration-200';
+    const validClasses = 'border-secondary-light dark:border-neutral-600 focus:ring-primary dark:focus:ring-primary-light focus:border-primary dark:focus:border-primary-light dark:bg-neutral-700 dark:text-white';
+    const errorClasses = 'border-error-dark dark:border-error-light focus:ring-error dark:focus:ring-error-light focus:border-error dark:focus:border-error-light bg-error-light/5 dark:bg-error-dark/10';
 
     const isPassword = type === 'password';
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
     return (
       <div className={containerClassName}>
-        <label htmlFor={props.id} className="block text-sm font-medium text-text-secondary">
+        <label htmlFor={props.id} className={`block text-sm font-medium text-neutral-700 dark:text-neutral-200 ${labelClassName}`}>
           {label}
-          {props.required && <span className="text-error-dark ml-1">*</span>}
+          {props.required && <span className="text-error-dark dark:text-error-light ml-1">*</span>}
         </label>
         <div className="relative">
           <input
@@ -38,7 +39,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               tabIndex={-1}
-              className="absolute inset-y-0 right-0 flex items-center px-2 text-text-tertiary hover:text-primary focus:outline-none"
+              className="absolute inset-y-0 right-0 flex items-center px-2 text-neutral-400 dark:text-neutral-400 hover:text-primary dark:hover:text-primary-light focus:outline-none"
               onClick={() => setShowPassword((v) => !v)}
             >
               {showPassword ? (
@@ -54,12 +55,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p className="mt-1 text-sm text-error-dark" id={`${props.id}-error`} role="alert">
+          <p className="mt-1 text-sm text-error-dark dark:text-error-light" id={`${props.id}-error`} role="alert">
             {error.message}
           </p>
         )}
         {!error && helperText && (
-          <p className="mt-1 text-sm text-text-tertiary" id={`${props.id}-description`}>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400" id={`${props.id}-description`}>
             {helperText}
           </p>
         )}

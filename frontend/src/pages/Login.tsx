@@ -1,176 +1,123 @@
-import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import SocialButton from '../components/ui/SocialButton';
 import Divider from '../components/ui/Divider';
-import { ValidationError } from '../utils/validation';
+import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../utils/api';
-
-interface LoginForm {
-  email: string;
-  password: string;
-}
-
-interface FormErrors {
-  [key: string]: ValidationError | null;
-}
+import { useToast } from '../context/ToastContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<LoginForm>({
-    email: '',
-    password: '',
-  });
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const [serverError, setServerError] = useState<string>('');
+  const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
 
-  const validateLoginForm = (formData: LoginForm): FormErrors => {
-    const errors: FormErrors = {};
-    if (!formData.email) {
-      errors.email = { field: 'email', message: 'Email is required' };
-    }
-    if (!formData.password) {
-      errors.password = { field: 'password', message: 'Password is required' };
-    }
-    return errors;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setServerError('');
-
-    const errors = validateLoginForm(formData);
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
+    setError('');
     setIsLoading(true);
 
     try {
       const response = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error('Email or password may be invalid or does not exist');
+        // Handle specific error cases with clearer messages
+        if (response.status === 401) {
+          if (data.error.includes('verify your email')) {
+            throw new Error('Please verify your email address before logging in');
+          } else {
+            throw new Error('Invalid email or password');
+          }
+        }
+        throw new Error(data.error || 'Failed to login');
       }
 
-      // Store token and user data
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Redirect based on role
-      if (data.user.role === 'finance_coordinator') {
-        navigate('/dashboard/fc');
-      } else {
-        navigate('/dashboard/student');
-      }
+      showToast('Logged in successfully!', 'success');
+      navigate('/dashboard/student');
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'An error occurred');
+      // Handle the specific "Illegal arguments" error that appears when email doesn't exist
+      if (err instanceof Error && err.message.includes('Illegal arguments: string, object')) {
+        setError('Invalid email or password');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to login');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSSOLogin = async (provider: 'facebook' | 'google') => {
-    try {
-      window.location.href = getApiUrl(`/api/auth/${provider}`);
-    } catch (err) {
-      setServerError('Failed to initialize SSO login');
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-secondary px-4 sm:px-6 lg:px-8">
-      <Card
-        title="Welcome Back"
-        subtitle="Thesis Finance Tracker"
-        className="w-full max-w-md"
-      >
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <SocialButton
-              provider="facebook"
-              onClick={() => handleSSOLogin('facebook')}
-            />
-            <SocialButton
-              provider="google"
-              onClick={() => handleSSOLogin('google')}
-            />
-          </div>
+    <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h1 className="text-center text-3xl font-bold tracking-tight text-neutral-900 dark:text-white font-display">
+          Welcome back!
+        </h1>
+        <p className="mt-2 text-center text-sm text-neutral-600 dark:text-neutral-300">
+          Sign in to your account to continue
+        </p>
+      </div>
 
-          <Divider text="Or continue with" />
-
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {serverError && (
-              <div className="rounded-md bg-error-light/10 p-4">
-                <div className="text-sm text-error-dark">{serverError}</div>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <Card variant="default" className="py-8 px-4 shadow-medium sm:rounded-xl sm:px-10 bg-white dark:bg-neutral-800">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="rounded-lg bg-red-50 dark:bg-red-900/30 p-4 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
               </div>
             )}
-            
-            <div className="space-y-4">
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                label="Email address"
-                required
-                autoComplete="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                error={formErrors.email}
-              />
-              
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                label="Password"
-                required
-                autoComplete="current-password"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-                error={formErrors.password}
-              />
-            </div>
+
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              label="Email address"
+              autoComplete="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+            />
+
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              label="Password"
+              autoComplete="current-password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+            />
 
             <div className="flex items-center justify-between">
               <div className="text-sm">
-                <a href="/forgot-password" className="font-medium text-primary hover:text-primary-dark">
+                <Link
+                  to="/forgot-password"
+                  className="font-medium text-primary-500 hover:text-primary-400 dark:text-primary-400 dark:hover:text-primary-300"
+                >
                   Forgot your password?
-                </a>
-              </div>
-              <div className="text-sm">
-                <a href="/register" className="font-medium text-primary hover:text-primary-dark">
-                  Create an account
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -183,8 +130,39 @@ const Login = () => {
               Sign in
             </Button>
           </form>
-        </div>
-      </Card>
+
+          <Divider className="my-6">Or continue with</Divider>
+
+          <div className="grid grid-cols-2 gap-3">
+            <SocialButton
+              provider="google"
+              onClick={() => window.location.href = getApiUrl('/api/auth/google')}
+            >
+              Google
+            </SocialButton>
+            <SocialButton
+              provider="facebook"
+              onClick={() => window.location.href = getApiUrl('/api/auth/facebook')}
+            >
+              Facebook
+            </SocialButton>
+          </div>
+
+          <p className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              className="font-medium text-primary-500 hover:text-primary-400 dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              Sign up
+            </Link>
+          </p>
+        </Card>
+      </div>
+
+      <footer className="mt-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
+        Made by Zen Garden 2025 - Thesis Financial Tracker
+      </footer>
     </div>
   );
 };

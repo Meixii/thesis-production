@@ -2,12 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
 const session = require('express-session');
+const path = require('path');
 require('dotenv').config();
 
 // Import passport config
 require('./config/passport');
 
 const authRoutes = require('./routes/authRoutes');
+const studentRoutes = require('./routes/studentRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
@@ -17,6 +20,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Session middleware
 app.use(session({
@@ -35,6 +41,8 @@ app.use(passport.session());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

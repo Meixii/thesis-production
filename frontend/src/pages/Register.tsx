@@ -1,75 +1,45 @@
-import { useState, FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import SocialButton from '../components/ui/SocialButton';
 import Divider from '../components/ui/Divider';
-import { validateEmail, validatePassword, validateName, validateConfirmPassword, ValidationError } from '../utils/validation';
+import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../utils/api';
 
-interface RegisterForm {
+interface RegisterFormData {
   firstName: string;
-  middleName: string;
   lastName: string;
-  suffix: string;
   email: string;
   password: string;
   confirmPassword: string;
 }
 
-interface FormErrors {
-  [key: string]: ValidationError | null;
-}
-
 const Register = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const ssoEmail = searchParams.get('email');
-  const ssoProvider = searchParams.get('provider');
-  const ssoId = searchParams.get('id');
-
-  const [formData, setFormData] = useState<RegisterForm>({
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
-    middleName: '',
     lastName: '',
-    suffix: '',
-    email: ssoEmail || '',
+    email: '',
     password: '',
-    confirmPassword: '',
+    confirmPassword: ''
   });
 
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const [serverError, setServerError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-
-  const validateForm = (): boolean => {
-    const errors: FormErrors = {
-      firstName: validateName(formData.firstName, 'firstName'),
-      lastName: validateName(formData.lastName, 'lastName'),
-      middleName: formData.middleName ? validateName(formData.middleName, 'middleName') : null,
-      email: validateEmail(formData.email),
-      password: !ssoProvider ? validatePassword(formData.password) : null,
-      confirmPassword: !ssoProvider ? validateConfirmPassword(formData.password, formData.confirmPassword) : null
-    };
-
-    // Remove null errors (optional fields)
-    Object.keys(errors).forEach(key => {
-      if (errors[key] === null) {
-        delete errors[key];
-      }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
     });
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setServerError('');
+    setError('');
 
-    if (!validateForm()) {
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -79,212 +49,150 @@ const Register = () => {
       const response = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...formData,
-          ssoProvider,
-          ssoId,
-        }),
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(data.error || 'Failed to register');
       }
 
-      if (ssoProvider) {
-        // For SSO users, we can log them in directly
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/dashboard/student');
-      } else {
-        // For traditional registration, show verification message
-        setSuccessMessage('Registration successful! Please check your email for verification link.');
-      }
+      // Registration successful, redirect to verification page
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Failed to register');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSSOLogin = async (provider: 'facebook' | 'google') => {
-    try {
-      window.location.href = getApiUrl(`/api/auth/${provider}`);
-    } catch (err) {
-      setServerError('Failed to initialize SSO login');
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-secondary px-4 sm:px-6 lg:px-8">
-      <Card
-        title={ssoProvider ? 'Complete Your Profile' : 'Create an Account'}
-        subtitle="Thesis Finance Tracker"
-        className="w-full max-w-md"
-      >
-        <div className="space-y-6">
-          {!ssoProvider && (
-            <>
-              <div className="space-y-3">
-                <SocialButton
-                  provider="facebook"
-                  onClick={() => handleSSOLogin('facebook')}
-                />
-                <SocialButton
-                  provider="google"
-                  onClick={() => handleSSOLogin('google')}
-                />
+    <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h1 className="text-center text-3xl font-bold tracking-tight text-neutral-900 dark:text-white font-display">
+          Create your account
+        </h1>
+        <p className="mt-2 text-center text-sm text-neutral-600 dark:text-neutral-300">
+          Join us to manage your thesis finances
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <Card variant="default" className="py-8 px-4 shadow-medium sm:rounded-xl sm:px-10 bg-white dark:bg-neutral-800">
+          <div className="grid grid-cols-2 gap-3">
+            <SocialButton
+              provider="google"
+              onClick={() => window.location.href = getApiUrl('/api/auth/google')}
+            >
+              Google
+            </SocialButton>
+            <SocialButton
+              provider="facebook"
+              onClick={() => window.location.href = getApiUrl('/api/auth/facebook')}
+            >
+              Facebook
+            </SocialButton>
+          </div>
+
+          <Divider className="my-6">Or register with email</Divider>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="rounded-lg bg-error-light/10 p-4">
+                <p className="text-sm text-error-dark">{error}</p>
               </div>
+            )}
 
-              <Divider text="Or register with email" />
-            </>
-          )}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <Input
+                id="firstName"
+                name="firstName"
+                type="text"
+                label="First name"
+                autoComplete="given-name"
+                required
+                value={formData.firstName}
+                onChange={handleChange}
+              />
 
-          {successMessage ? (
-            <div className="rounded-md bg-success-light/10 p-4 flex flex-col items-center space-y-2">
-              <div className="text-sm text-success-dark">{successMessage}</div>
-              <div className="text-xs text-text-secondary">You may now close this tab or go to the login page.</div>
-              <button
-                onClick={() => navigate('/login')}
-                className="mt-2 text-primary hover:text-primary-dark font-medium"
-              >
-                Go to Login
-              </button>
+              <Input
+                id="lastName"
+                name="lastName"
+                type="text"
+                label="Last name"
+                autoComplete="family-name"
+                required
+                value={formData.lastName}
+                onChange={handleChange}
+              />
             </div>
-          ) : (
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {serverError && (
-                <div className="rounded-md bg-error-light/10 p-4">
-                  <div className="text-sm text-error-dark">{serverError}</div>
-                </div>
-              )}
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    label="First Name"
-                    required
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    error={formErrors.firstName}
-                  />
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    label="Last Name"
-                    required
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    error={formErrors.lastName}
-                  />
-                </div>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              label="Email address"
+              autoComplete="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+            />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    id="middleName"
-                    name="middleName"
-                    type="text"
-                    label="Middle Name"
-                    value={formData.middleName}
-                    onChange={handleChange}
-                    error={formErrors.middleName}
-                  />
-                  <Input
-                    id="suffix"
-                    name="suffix"
-                    type="text"
-                    label="Suffix"
-                    placeholder="Jr., Sr., III"
-                    value={formData.suffix}
-                    onChange={handleChange}
-                  />
-                </div>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              label="Password"
+              autoComplete="new-password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+            />
 
-                {!ssoProvider && (
-                  <>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      label="Email address"
-                      required
-                      autoComplete="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      error={formErrors.email}
-                    />
+            <Input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              label="Confirm password"
+              autoComplete="new-password"
+              required
+              value={formData.confirmPassword}
+              onChange={handleChange}
+            />
 
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      label="Password"
-                      required
-                      autoComplete="new-password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      error={formErrors.password}
-                      helperText="Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character."
-                    />
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              loadingText="Creating account..."
+              className="w-full"
+            >
+              Create account
+            </Button>
+          </form>
 
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      label="Confirm Password"
-                      required
-                      autoComplete="new-password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      error={formErrors.confirmPassword}
-                    />
-                  </>
-                )}
-              </div>
+          <p className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
+            Already have an account?{' '}
+            <Link
+              to="/login"
+              className="font-medium text-primary-500 hover:text-primary-400 dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              Sign in
+            </Link>
+          </p>
+        </Card>
+      </div>
 
-              <div className="flex items-center justify-between">
-                <div className="text-sm">
-                  Already have an account?{' '}
-                  <a href="/login" className="font-medium text-primary hover:text-primary-dark">
-                    Sign in
-                  </a>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                isLoading={isLoading}
-                loadingText="Creating account..."
-                className="w-full"
-              >
-                {ssoProvider ? 'Complete Registration' : 'Create Account'}
-              </Button>
-            </form>
-          )}
-        </div>
-      </Card>
+      <footer className="mt-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
+        Made by Zen Garden 2025 - Thesis Financial Tracker
+      </footer>
     </div>
   );
 };

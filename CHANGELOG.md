@@ -2,6 +2,109 @@
 
 ## Backend
 
+Update #19
+- Fixed payment submission issues:
+  - Fixed Cloudinary unsigned upload by removing disallowed 'display_name' parameter
+  - Corrected weekly_contributions status to use valid enum value ('unpaid' instead of 'pending_verification')
+  - Enhanced error handling for database enum restrictions
+  - Improved payment processing flow to ensure consistent status handling
+
+Update #18
+- Enhanced dashboard data with group information:
+  - Added group details (name, description) to dashboard response
+  - Improved fetch logic with proper group context
+  - Fixed conditional group data loading
+  - Added proper error handling for missing group data
+
+Update #17
+- Fixed "Cannot read properties of undefined (reading 'group_id')" error:
+  - Added proper null checks in studentController.js
+  - Fixed user ID extraction from authentication token
+  - Made error messages more descriptive and user-friendly
+  - Added additional validation for group code
+  - Improved error handling and logging
+  - Fixed inconsistency between joinGroup and getDashboardData functions
+
+
+Update #16
+- Improved Cloudinary integration for file uploads:
+  - Prioritized unsigned uploads with preset "thesis_finance_receipts"
+  - Added better error handling and graceful fallbacks
+  - Enhanced logging for upload tracking and debugging
+  - Improved receipt metadata storage for better record keeping
+  - Updated upload flow to match Cloudinary preset configuration
+  - Added display name handling for better file organization
+
+
+Update #15
+- Enhanced file upload naming convention for payments:
+  - Implemented structured filename format: Lastname_MMDDYYYY_HHMMSS_PAYMENTMETHOD
+  - Added descriptive Cloudinary public_id for better organization
+  - Improved file retrieval capabilities for admin dashboard
+  - Added consistent naming between Cloudinary and local storage
+  - Sanitized filenames to remove spaces and invalid characters
+  - Extended upload metadata to include user information
+  - Added format standardization for dates in filenames
+
+Update #14
+- Fixed payment upload functionality:
+  - Enhanced Cloudinary integration with proper timestamp handling
+  - Added local storage fallback for file uploads when Cloudinary unavailable
+  - Improved error handling in file upload process
+  - Added static file serving for locally stored uploads
+  - Enhanced logging for debugging upload issues
+  - Implemented graceful degradation when uploads fail
+
+Update #13
+- Fixed database connection issue in payment controller
+- Updated db.js to export connect method
+- Fixed middleware issues in student controller
+- Aligned backend code with PostgreSQL connection pattern
+
+Update #12
+- Fixed authentication middleware imports in routes
+- Fixed route callback function errors
+- Updated auth routes to use proper middleware destructuring
+
+Update #11
+- Added payment functionality:
+  - Created payment submission endpoint
+  - Added payment verification endpoint
+  - Implemented file upload with Cloudinary
+  - Added transaction handling for payments
+  - Created weekly contribution tracking
+  - Added payment allocation system
+  - Implemented proper error handling
+  - Added multer middleware for file uploads
+  - Added role-based access control for verification
+
+Update #10
+- Fixed student dashboard endpoint:
+  - Corrected user ID extraction from JWT token
+  - Added proper current week calculation
+  - Improved data structure to match frontend expectations
+  - Added detailed user profile information
+  - Enhanced error handling and logging
+  - Added proper data transformation for financial information
+  - Improved active loans query
+
+Update #9
+- Added join group functionality:
+  - Created join-group endpoint in studentController
+  - Added group_code column to groups table
+  - Created automatic group code generation
+  - Added validation for group joining
+  - Implemented transaction handling for group assignment
+  - Updated student routes with join-group endpoint
+
+Update #8
+- Added student dashboard functionality:
+  - Created studentController with getDashboardData endpoint
+  - Added student routes for dashboard data
+  - Implemented weekly contribution calculations
+  - Added loan status tracking
+  - Added financial summary calculations
+
 Update #7
 - Added POST /api/auth/verify-email/resend endpoint:
   - Allows authenticated users to request a new verification email if not yet verified
@@ -67,6 +170,226 @@ Update #1
 ---
 
 ## Frontend
+
+
+Update #28
+- Fixed Payment page group check issue:
+  - Corrected the condition that checks if a user belongs to a group
+  - Updated the group data path to match the API response structure (data.data.group)
+  - Added proper null checks to prevent TypeScript errors
+  - Fixed incorrect "No Group Assigned" message for users who have groups
+  - Added error handling for edge cases in group data retrieval
+  
+Update #27
+- Fixed login error handling for non-existent emails:
+  - Corrected the "Illegal arguments: string, object" error message
+  - Improved user feedback with consistent "Invalid email or password" message
+  - Enhanced error handling in the Login component
+  - Better UX by providing clear error messages for authentication failures
+
+Update #26
+- Improved login error handling and user feedback:
+  - Enhanced error messages for invalid credentials
+  - Added specific message for non-existing accounts
+  - Added proper styling for error messages
+  - Integrated toast notifications for successful login
+  - Improved text contrast in dark mode
+  - Fixed "Server error during login" generic message
+  - Added better user guidance with specific error states
+
+Update #25
+- Added Toast notification system for better user feedback:
+  - Created reusable Toast component with support for success, error, info, and warning types
+  - Implemented ToastContext for app-wide notifications
+  - Added animation and auto-dismissal functionality
+  - Provided feedback for successful group joining
+  - Enhanced user experience with visual feedback for actions
+- Fixed Join Group button visibility:
+  - Button no longer appears after joining a group
+  - Added proper group display in profile section
+  - Improved group membership UI feedback
+
+Update #24
+- Fixed JoinGroup component UI and readability issues:
+  - Improved text contrast for better readability
+  - Enhanced dark mode support throughout the UI
+  - Updated Modal component with better styling
+  - Fixed Input component styling in dark mode
+  - Added proper error message styling
+  - Improved form layout and spacing
+
+Update #23
+- Enhanced user profile with group information:
+  - Added group name display in the profile section
+  - Improved Button component with size variants (sm, md, lg)
+  - Added Join Group button in dashboard for users without a group
+  - Ensured Join Group modal is accessible from the dashboard
+  - Added responsive layout for profile section
+  - Improved visual presentation of group membership
+
+Update #22
+- Enhanced Payment UI with better visibility:
+  - Improved Download QR button contrast for better visibility
+  - Changed button colors to ensure text is clearly visible
+  - Used solid background colors instead of translucent ones
+  - Ensures proper visibility in both light and dark modes
+
+Update #21
+- Enhanced Payment page with QR code download functionality
+- Added download button for QR codes
+- Added user instructions for QR code usage
+- Improved UX for payment flow with clear guidance
+- Fixed crossOrigin attribute for QR code image processing
+
+Update #20
+- Enhanced Payment UI with modern design
+- Improved text contrast for better readability
+- Added gradient background and proper spacing
+- Enhanced form elements with better visual hierarchy
+- Added file upload dropzone with visual feedback
+- Added cash payment instructions section
+- Improved mobile responsiveness with adaptive layouts
+- Enhanced Input component with labelClassName prop support
+
+Update #19
+- Fixed Button component loading prop issue
+- Updated Payment component to use isLoading instead of loading
+- Fixed TypeScript linter errors in Payment component
+
+Update #18
+- Added payment page with modern UI:
+  - Created payment method selection
+  - Added QR code display for GCash/Maya
+  - Implemented reference ID input
+  - Added receipt upload functionality
+  - Enhanced form validation
+  - Added loading states
+  - Improved error handling
+  - Added success feedback
+  - Enhanced mobile responsiveness
+  - Added dark mode support
+
+Update #17
+- Enhanced dashboard UI with modern design:
+  - Added dark mode support throughout the dashboard
+  - Improved card designs with better shadows and borders
+  - Added icons to stat cards with status-based colors
+  - Enhanced text contrast and readability
+  - Added hover effects and transitions
+  - Improved spacing and layout consistency
+  - Added visual hierarchy with better typography
+  - Enhanced quick action buttons with icons
+  - Improved profile section with better avatar display
+  - Added consistent border colors and shadows
+
+Update #16
+- Enhanced dashboard data handling:
+  - Added proper data transformation for API response
+  - Improved error handling and display
+  - Added default values for missing data
+  - Enhanced type safety with proper interface matching
+  - Added detailed error logging
+
+Update #15
+- Fixed dashboard navigation and component issues:
+  - Corrected login redirect to '/dashboard/student'
+  - Fixed StatCard TypeScript errors in StudentDashboard
+  - Updated StatCard props from 'label' to 'title'
+  - Changed 'type' prop to 'status' for StatCard
+  - Fixed default status value for Amount Due card
+
+Update #14
+- Improved form label visibility:
+  - Enhanced label text contrast in both light and dark modes
+  - Updated Input component with better color scheme
+  - Fixed placeholder text visibility
+  - Improved helper text readability
+  - Updated password toggle button contrast
+
+Update #13
+- Fixed text visibility issues in authentication pages:
+  - Improved text contrast in light and dark modes
+  - Updated color scheme for better readability
+  - Added proper background colors to cards
+  - Enhanced link colors for better visibility
+- Added credits footer to authentication pages:
+  - Added "Made by Zen Garden 2025 Thesis Financial Tracker" footer
+  - Consistent styling across login and register pages
+  - Proper dark mode support for footer text
+
+Update #12
+- Enhanced authentication pages with new design system:
+  - Redesigned Login page with improved layout and visual hierarchy
+  - Enhanced Register page with streamlined form and better UX
+  - Added smooth transitions and animations
+  - Improved social login buttons
+  - Enhanced form validation and error handling
+  - Added responsive design for all screen sizes
+  - Improved accessibility with proper ARIA labels
+  - Added dark mode support
+  - Enhanced typography and spacing
+
+Update #11
+- Enhanced UI components with new color palette:
+  - Updated Card component with new hover effects and transitions
+  - Enhanced StatCard with improved status colors and trend indicators
+  - Refined Navigation with better contrast and interactive states
+  - Added smooth color transitions and hover effects
+  - Improved dark mode support with new neutral colors
+  - Enhanced accessibility with better color contrast
+  - Added consistent shadow system
+- Fixed backend middleware issue:
+  - Corrected auth middleware import in student routes
+  - Fixed router.use() middleware function error
+
+Update #10
+- Enhanced UI components for better visual appeal and responsiveness:
+  - Improved Card component with new variants, hover effects, and dark mode support
+  - Enhanced StatCard with better data visualization, trends, and status indicators
+  - Updated DashboardCard with flexible layouts and action buttons
+  - Added consistent spacing and typography across components
+  - Improved mobile responsiveness with adaptive padding
+  - Added dark mode support across all components
+  - Enhanced interactive elements with smooth transitions
+- Added new responsive navigation system:
+  - Created Navigation component with mobile menu support
+  - Added icon integration for better visual hierarchy
+  - Implemented active state indicators
+  - Added smooth transitions for menu interactions
+- Created Layout component for consistent page structure:
+  - Flexible header, sidebar, and footer slots
+  - Responsive container widths
+  - Sticky header and sidebar support
+  - Proper spacing and alignment system
+  - Dark mode compatible
+
+Update #9
+- Started implementing reusable Modal component for better UX:
+  - Created Modal.tsx with customizable content and actions
+  - Added proper focus management and keyboard navigation
+  - Implemented backdrop click handling
+  - Added animation support for smooth transitions
+- Added Join Group feature components:
+  - Created JoinGroup.tsx for users without a group
+  - Integrated with Modal component for group joining flow
+  - Added form validation and error handling
+- Enhanced mobile responsiveness:
+  - Improved layout adaptability for different screen sizes
+  - Added proper touch interactions for mobile users
+  - Optimized component spacing and sizing
+- Organized components into logical folders:
+  - ui/: Reusable UI components
+  - dashboard/: Dashboard-specific components
+  - groups/: Group management components
+
+Update #8
+- Enhanced student dashboard with financial information:
+  - Added DashboardCard and StatCard reusable components
+  - Implemented financial overview with current week status
+  - Added total contributions and outstanding balance display
+  - Integrated active loans section
+  - Added quick action buttons for payments and loans
+  - Improved responsive layout for all screen sizes
 
 Update #7
 - Fixed URL construction in getApiUrl utility:
@@ -146,3 +469,27 @@ Update #1
 ## README.md
 
 Update #1
+
+## Update #1
+- Initial project setup
+- Added basic file structure
+- Implemented authentication system
+
+## Update #2
+- Added payment system implementation
+- Created frontend payment form with QR code support
+- Integrated Cloudinary for receipt uploads
+- Added payment verification system for Finance Coordinators
+- Fixed auth middleware and role-based access control
+- Updated QR code images to use JPG format
+
+## Documentation 
+
+Update #1
+- Updated README.md with accurate database schema:
+  - Corrected groups table schema to match actual implementation
+  - Added group_code field to groups table definition
+  - Fixed field naming conventions (group_name instead of name)
+  - Removed non-existent description field references
+  - Updated backend code to properly use the schema fields
+  - Ensured consistency between documentation and implementation
