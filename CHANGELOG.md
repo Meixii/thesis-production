@@ -182,6 +182,24 @@ Update #1
 
 ## Frontend
 
+Update #34
+- Fixed 404 errors for direct link access in Vercel deployment:
+  - Added vercel.json configuration file with URL rewrite rules
+  - Configured all routes to be handled by index.html in Vercel
+  - Ensured email verification links work when accessed directly
+  - Fixed SPA routing for all deep links
+  - Improved deployment configuration for better user experience
+
+Update #33
+- Fixed verify-email page not showing after account registration:
+  - Created new VerifyEmailInfo component to show email verification instructions
+  - Added dedicated route for /verify-email without token parameter
+  - Improved user experience with clear verification instructions
+  - Added resend verification email placeholder functionality
+  - Enhanced navigation flow after registration
+  - Added automatic redirection to login if accessed directly
+  - Maintained consistent styling with the rest of the application
+
 Update #32
 - Improved app-wide navigation and consistency:
   - Enhanced Navigation component with built-in navigation items

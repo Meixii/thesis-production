@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import VerifyEmail from './pages/VerifyEmail';
+import VerifyEmailInfo from './pages/VerifyEmailInfo';
 import Payment from './pages/Payment';
 import LoanRequest from './pages/LoanRequest';
 import MyLoans from './pages/MyLoans';
@@ -19,6 +20,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/dashboard/student" element={<StudentDashboard />} />
+          <Route path="/verify-email" element={<VerifyEmailInfo />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/loans/request" element={<LoanRequest />} />
