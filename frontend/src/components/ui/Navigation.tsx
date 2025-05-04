@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../../utils/api';
 
 interface NavigationItem {
   name: string;
@@ -17,7 +18,7 @@ interface NavigationProps {
 const defaultNavigationItems: NavigationItem[] = [
   {
     name: 'Dashboard',
-    href: '/dashboard/student',
+    href: '/dashboard', // This will be adjusted dynamically based on role
     icon: (props) => (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -54,10 +55,29 @@ const defaultNavigationItems: NavigationItem[] = [
         <path d="M17 9V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2m2 4h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm7-5a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
       </svg>
     ),
-    roles: ['student', 'finance_coordinator']
+    roles: ['student']
   },
   {
-    name: 'Loans',
+    name: 'Verify Payments',
+    href: '/verify-payments',
+    icon: (props) => (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={props.className}
+      >
+        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2 2h2a2 2 0 0 1 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 14l2 2 4-4" />
+      </svg>
+    ),
+    roles: ['finance_coordinator']
+  },
+  {
+    name: 'My Loans',
     href: '/loans/my-loans',
     icon: (props) => (
       <svg
@@ -73,6 +93,87 @@ const defaultNavigationItems: NavigationItem[] = [
         <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2 2h2a2 2 0 0 1 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
       </svg>
     ),
+    roles: ['student']
+  },
+  {
+    name: 'Loan Requests',
+    href: '/loans/intra',
+    icon: (props) => (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={props.className}
+      >
+        <path d="M17 9V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2m2 4h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm7-5a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" />
+      </svg>
+    ),
+    roles: ['finance_coordinator']
+  },
+  {
+    name: 'Members',
+    href: '/members',
+    icon: (props) => (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={props.className}
+      >
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    ),
+    roles: ['finance_coordinator']
+  },
+  {
+    name: 'Expenses',
+    href: '/expenses',
+    icon: (props) => (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={props.className}
+      >
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+      </svg>
+    ),
+    roles: ['finance_coordinator']
+  },
+  {
+    name: 'Profile',
+    href: '/profile',
+    icon: (props) => (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={props.className}
+      >
+        <circle cx="12" cy="7" r="4" />
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      </svg>
+    ),
     roles: ['student', 'finance_coordinator']
   }
 ];
@@ -82,15 +183,74 @@ const Navigation: React.FC<NavigationProps> = ({
   onLogout 
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState<'student' | 'finance_coordinator'>(userRole);
   const location = useLocation();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // If userRole prop is provided, use it
+    if (userRole) {
+      setCurrentRole(userRole);
+      return;
+    }
+
+    // Otherwise try to determine the user's role from the current route or API
+    if (location.pathname.includes('/dashboard/fc')) {
+      setCurrentRole('finance_coordinator');
+    } else if (location.pathname.includes('/dashboard/student')) {
+      setCurrentRole('student');
+    } else {
+      // Try to fetch user data to determine role
+      const fetchUserData = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+
+          const response = await fetch(getApiUrl('/api/auth/profile'), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          const data = await response.json();
+          if (response.ok && data.data?.role) {
+            const role = data.data.role.toLowerCase();
+            setCurrentRole(role === 'finance_coordinator' ? 'finance_coordinator' : 'student');
+          }
+        } catch (error) {
+          console.error('Failed to fetch user role:', error);
+        }
+      };
+
+      fetchUserData();
+    }
+  }, [location.pathname, userRole]);
+
+  // Adjust dashboard route based on role
+  const processedItems = defaultNavigationItems.map(item => {
+    if (item.name === 'Dashboard') {
+      return {
+        ...item,
+        href: currentRole === 'finance_coordinator' ? '/dashboard/fc' : '/dashboard/student'
+      };
+    }
+    return item;
+  });
+
   // Filter navigation items based on user role
-  const filteredItems = defaultNavigationItems.filter(
-    item => !item.roles || item.roles.includes(userRole)
+  const filteredItems = processedItems.filter(
+    item => !item.roles || item.roles.includes(currentRole)
   );
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isActive = (path: string) => {
+    // Handle special case for dashboard
+    if (path === '/dashboard/fc' && location.pathname === '/dashboard/fc') return true;
+    if (path === '/dashboard/student' && location.pathname === '/dashboard/student') return true;
+    
+    // General case
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   const handleLogout = () => {
     if (onLogout) {

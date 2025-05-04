@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "chart.js": "^4.4.9",
     "cloudinary": "^2.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
@@ -24,7 +25,8 @@
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
-    "pg": "^8.10.0"
+    "pg": "^8.10.0",
+    "react-chartjs-2": "^5.3.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

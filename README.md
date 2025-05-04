@@ -98,7 +98,9 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role user_role NOT NULL DEFAULT 'student',
     is_active BOOLEAN DEFAULT TRUE, -- To deactivate users if they leave group
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    reset_password_token VARCHAR(255),
+    reset_password_expires TIMESTAMP WITH TIME ZONE;
 );
 
 -- Table to define specific weeks of the thesis period (Optional but useful)
