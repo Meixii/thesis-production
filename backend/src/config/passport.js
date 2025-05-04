@@ -22,33 +22,37 @@ passport.deserializeUser(async (id, done) => {
 passport.use(new FacebookStrategy({
     clientID: process.env.FACEBOOK_APP_ID,
     clientSecret: process.env.FACEBOOK_APP_SECRET,
-    callbackURL: "http://localhost:5000/api/auth/facebook/callback",
+    callbackURL: `${process.env.BACKEND_URL}/api/auth/facebook/callback`,
     profileFields: ['id', 'emails', 'name']
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      // Check if user exists
+      // Check if user exists by email or Facebook ID
       const existingUser = await db.query(
-        'SELECT * FROM users WHERE email = $1',
-        [profile.emails[0].value]
+        'SELECT * FROM users WHERE email = $1 OR facebook_id = $2',
+        [profile.emails[0].value, profile.id]
       );
 
       if (existingUser.rows[0]) {
+        // Update Facebook ID if not set
+        if (!existingUser.rows[0].facebook_id) {
+          await db.query(
+            'UPDATE users SET facebook_id = $1 WHERE id = $2',
+            [profile.id, existingUser.rows[0].id]
+          );
+        }
         return done(null, existingUser.rows[0]);
       }
 
-      // If user doesn't exist, create new user
-      const newUser = await db.query(
-        'INSERT INTO users (email, full_name, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING *',
-        [
-          profile.emails[0].value,
-          `${profile.name.givenName} ${profile.name.familyName}`,
-          'SSO_USER',
-          'student'
-        ]
-      );
-
-      done(null, newUser.rows[0]);
+      // If user doesn't exist, redirect to registration with SSO data
+      return done(null, {
+        email: profile.emails[0].value,
+        firstName: profile.name.givenName,
+        lastName: profile.name.familyName,
+        ssoProvider: 'facebook',
+        ssoId: profile.id,
+        isNewUser: true
+      });
     } catch (error) {
       done(error);
     }
@@ -59,32 +63,36 @@ passport.use(new FacebookStrategy({
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:5000/api/auth/google/callback"
+    callbackURL: `${process.env.BACKEND_URL}/api/auth/google/callback`
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      // Check if user exists
+      // Check if user exists by email or Google ID
       const existingUser = await db.query(
-        'SELECT * FROM users WHERE email = $1',
-        [profile.emails[0].value]
+        'SELECT * FROM users WHERE email = $1 OR google_id = $2',
+        [profile.emails[0].value, profile.id]
       );
 
       if (existingUser.rows[0]) {
+        // Update Google ID if not set
+        if (!existingUser.rows[0].google_id) {
+          await db.query(
+            'UPDATE users SET google_id = $1 WHERE id = $2',
+            [profile.id, existingUser.rows[0].id]
+          );
+        }
         return done(null, existingUser.rows[0]);
       }
 
-      // If user doesn't exist, create new user
-      const newUser = await db.query(
-        'INSERT INTO users (email, full_name, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING *',
-        [
-          profile.emails[0].value,
-          profile.displayName,
-          'SSO_USER',
-          'student'
-        ]
-      );
-
-      done(null, newUser.rows[0]);
+      // If user doesn't exist, redirect to registration with SSO data
+      return done(null, {
+        email: profile.emails[0].value,
+        firstName: profile.name.givenName,
+        lastName: profile.name.familyName,
+        ssoProvider: 'google',
+        ssoId: profile.id,
+        isNewUser: true
+      });
     } catch (error) {
       done(error);
     }
