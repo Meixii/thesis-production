@@ -65,7 +65,60 @@ const getGroup = async (req, res) => {
   }
 };
 
+/**
+ * Get loan limits for a specific group
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getGroupLimits = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    
+    // Verify user belongs to this group or is a finance coordinator
+    const userGroupResult = await db.query(
+      'SELECT group_id, role FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    
+    if (!userGroupResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userGroup = userGroupResult.rows[0].group_id;
+    const userRole = userGroupResult.rows[0].role;
+    
+    // Only allow access if user is part of the group or is a finance coordinator
+    if (userGroup != groupId && userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'You do not have permission to view this group\'s limits' });
+    }
+    
+    // Get group limits
+    const groupResult = await db.query(
+      `SELECT 
+        id, 
+        group_name, 
+        budget_goal, 
+        max_intra_loan_per_student, 
+        max_inter_loan_limit, 
+        intra_loan_flat_fee
+      FROM groups
+      WHERE id = $1`,
+      [groupId]
+    );
+    
+    if (!groupResult.rows.length) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    res.json(groupResult.rows[0]);
+  } catch (error) {
+    console.error('Get group limits error:', error);
+    res.status(500).json({ error: 'Server error while fetching group limits' });
+  }
+};
+
 module.exports = {
   createGroup,
-  getGroup
+  getGroup,
+  getGroupLimits
 }; 

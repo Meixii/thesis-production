@@ -11,6 +11,8 @@ require('./config/passport');
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const loanRoutes = require('./routes/loanRoutes');
+const groupRoutes = require('./routes/groupRoutes');
 
 const app = express();
 
@@ -43,6 +45,8 @@ app.use(passport.session());
 app.use('/api/auth', authRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/loans', loanRoutes);
+app.use('/api/groups', groupRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

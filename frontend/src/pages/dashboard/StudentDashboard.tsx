@@ -5,6 +5,7 @@ import DashboardCard from '../../components/dashboard/DashboardCard';
 import StatCard from '../../components/dashboard/StatCard';
 import JoinGroup from '../../components/groups/JoinGroup';
 import Button from '../../components/ui/Button';
+import Navigation from '../../components/ui/Navigation';
 import { useToast } from '../../context/ToastContext';
 
 interface UserProfile {
@@ -182,6 +183,26 @@ const StudentDashboard = () => {
     }, 300);
   };
 
+  // Helper function to get proper status badge styles
+  const getLoanStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'requested':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'approved':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      case 'disbursed':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+      case 'partially_repaid':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300';
+      case 'fully_repaid':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex items-center justify-center">
@@ -195,25 +216,7 @@ const StudentDashboard = () => {
     return (
       <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
         {/* Navigation */}
-        <nav className="bg-white dark:bg-neutral-800 shadow-sm border-b border-neutral-200 dark:border-neutral-700">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                  Thesis Finance
-                </h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handleLogout}
-                  className="px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition-colors"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
+        <Navigation onLogout={handleLogout} />
 
         <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md mx-auto bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden p-8 text-center">
@@ -261,25 +264,7 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
       {/* Navigation */}
-      <nav className="bg-white dark:bg-neutral-800 shadow-sm border-b border-neutral-200 dark:border-neutral-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                Thesis Finance
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-md transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation onLogout={handleLogout} />
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {dashboardData && (
@@ -412,6 +397,14 @@ const StudentDashboard = () => {
                 <div className="space-y-4">
                   {dashboardData.activeLoans.map(loan => (
                     <div key={loan.id} className="border-b border-neutral-200 dark:border-neutral-700 pb-4 last:border-b-0 last:pb-0">
+                      <div className="flex flex-wrap justify-between items-center mb-3">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                          Loan #{loan.id}
+                        </h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${getLoanStatusBadgeClass(loan.status)}`}>
+                          {loan.status.replace('_', ' ')}
+                        </span>
+                      </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <p className="text-sm text-neutral-500 dark:text-neutral-400">Amount Approved</p>
@@ -428,9 +421,19 @@ const StudentDashboard = () => {
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-neutral-500 dark:text-neutral-400">Status</p>
-                          <p className="font-semibold capitalize text-neutral-900 dark:text-white">{loan.status}</p>
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400">Remaining</p>
+                          <p className="font-semibold text-neutral-900 dark:text-white">
+                            {formatCurrency(loan.amountApproved - loan.amountRepaid)}
+                          </p>
                         </div>
+                      </div>
+                      <div className="mt-3">
+                        <button
+                          onClick={() => navigate('/loans/my-loans')}
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors"
+                        >
+                          View Details →
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -443,7 +446,7 @@ const StudentDashboard = () => {
               title="Quick Actions"
               className="bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200 dark:border-neutral-700"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <button
                   onClick={() => navigate('/payment')}
                   className="flex items-center justify-center px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg shadow-sm transition-colors space-x-2"
@@ -452,6 +455,15 @@ const StudentDashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                   <span>Make Payment</span>
+                </button>
+                <button
+                  onClick={() => navigate('/loans/my-loans')}
+                  className="flex items-center justify-center px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg shadow-sm transition-colors space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  <span>View Loans</span>
                 </button>
                 <button
                   onClick={() => navigate('/loans/request')}
@@ -469,7 +481,7 @@ const StudentDashboard = () => {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <span>View History</span>
+                  <span>Payment History</span>
                 </button>
               </div>
             </DashboardCard>

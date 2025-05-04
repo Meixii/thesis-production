@@ -5,6 +5,8 @@ import AuthCallback from './pages/AuthCallback';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import VerifyEmail from './pages/VerifyEmail';
 import Payment from './pages/Payment';
+import LoanRequest from './pages/LoanRequest';
+import MyLoans from './pages/MyLoans';
 import { ToastProvider } from './context/ToastContext';
 import './App.css';
 
@@ -19,6 +21,8 @@ function App() {
           <Route path="/dashboard/student" element={<StudentDashboard />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/payment" element={<Payment />} />
+          <Route path="/loans/request" element={<LoanRequest />} />
+          <Route path="/loans/my-loans" element={<MyLoans />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
           {/* Add more routes here later */}
         </Routes>

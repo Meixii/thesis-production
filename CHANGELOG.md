@@ -2,6 +2,17 @@
 
 ## Backend
 
+Update #20
+- Added loan management functionality:
+  - Created loan controller with requestIntraLoan, getLoanById, and getUserLoans endpoints
+  - Added loan routes for student loan requests
+  - Implemented validation for loan amounts against group limits
+  - Added checking for existing active loans
+  - Implemented due date validation
+  - Added group limit retrieval endpoint
+  - Enhanced group controller with getGroupLimits function
+  - Added proper error handling for loan operations
+
 Update #19
 - Fixed payment submission issues:
   - Fixed Cloudinary unsigned upload by removing disallowed 'display_name' parameter
@@ -171,6 +182,46 @@ Update #1
 
 ## Frontend
 
+Update #32
+- Improved app-wide navigation and consistency:
+  - Enhanced Navigation component with built-in navigation items
+  - Added support for role-based navigation filtering
+  - Implemented consistent navigation across all app pages
+  - Improved mobile responsiveness and menu handling
+  - Added built-in logout functionality
+  - Updated dashboard, loans, and payment pages to use shared Navigation
+  - Fixed styling issues and improved color consistency
+  - Enhanced active link detection for nested routes
+
+Update #31
+- Enhanced loan management UI:
+  - Created dedicated MyLoans page to display all user loans
+  - Added loan status badges with color coding for different statuses (Requested, Approved, Rejected, Disbursed, Partially Repaid, Fully Repaid)
+  - Added "View Loans" button to dashboard quick actions
+  - Improved active loans display in dashboard with status badges
+  - Added loan repayment progress indicator for disbursed loans
+  - Enhanced navigation between loan-related pages
+  - Renamed buttons for improved clarity
+  - Added "View Details" links for each loan
+
+Update #30
+- Fixed loan request page TypeScript error:
+  - Added proper number parsing for API response values
+  - Fixed "toFixed is not a function" error by ensuring values are numbers
+  - Added a formatCurrency helper function to safely handle currency formatting
+  - Improved type safety in LoanRequest component
+  - Enhanced error handling for malformed API responses
+
+Update #29
+- Added loan management features:
+  - Created LoanRequest page with comprehensive form
+  - Added route for loan requests in App.tsx
+  - Implemented amount and due date validation
+  - Added display of group loan limits (max loan amount and flat fee)
+  - Enhanced UI with informative sections about loan terms
+  - Added proper error handling and user feedback
+  - Integrated with toast notification system
+  - Ensured consistent styling with other pages
 
 Update #28
 - Fixed Payment page group check issue:
@@ -179,7 +230,7 @@ Update #28
   - Added proper null checks to prevent TypeScript errors
   - Fixed incorrect "No Group Assigned" message for users who have groups
   - Added error handling for edge cases in group data retrieval
-  
+
 Update #27
 - Fixed login error handling for non-existent emails:
   - Corrected the "Illegal arguments: string, object" error message
