@@ -75,7 +75,7 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ const Register = () => {
 
   const handleSSOLogin = async (provider: 'facebook' | 'google') => {
     try {
-      window.location.href = `http://localhost:5000/api/auth/${provider}`;
+      window.location.href = `${import.meta.env.VITE_BACKEND_URL}/api/auth/${provider}`;
     } catch (err) {
       setServerError('Failed to initialize SSO login');
     }

@@ -68,6 +68,14 @@ Update #1
 
 ## Frontend
 
+Update #5
+- Updated all fetch calls to use environment variable for backend URL:
+  - Modified Login.tsx to use VITE_BACKEND_URL
+  - Modified Register.tsx to use VITE_BACKEND_URL
+  - Modified VerifyEmail.tsx to use VITE_BACKEND_URL
+  - Modified StudentDashboard.tsx to use VITE_BACKEND_URL
+  - Improved maintainability by centralizing backend URL configuration
+
 Update #4
 - Enhanced SSO integration:
   - Improved AuthCallback component with better error handling
