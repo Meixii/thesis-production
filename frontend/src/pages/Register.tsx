@@ -9,7 +9,9 @@ import { getApiUrl } from '../utils/api';
 
 interface RegisterFormData {
   firstName: string;
+  middleName: string;
   lastName: string;
+  suffix: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -21,7 +23,9 @@ const Register = () => {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
+    middleName: '',
     lastName: '',
+    suffix: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -53,7 +57,9 @@ const Register = () => {
         },
         body: JSON.stringify({
           firstName: formData.firstName,
+          middleName: formData.middleName,
           lastName: formData.lastName,
+          suffix: formData.suffix,
           email: formData.email,
           password: formData.password
         })
@@ -131,6 +137,28 @@ const Register = () => {
                 autoComplete="family-name"
                 required
                 value={formData.lastName}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <Input
+                id="middleName"
+                name="middleName"
+                type="text"
+                label="Middle name (optional)"
+                autoComplete="additional-name"
+                value={formData.middleName}
+                onChange={handleChange}
+              />
+
+              <Input
+                id="suffix"
+                name="suffix"
+                type="text"
+                label="Suffix (optional)"
+                placeholder="Jr., Sr., III, etc."
+                value={formData.suffix}
                 onChange={handleChange}
               />
             </div>

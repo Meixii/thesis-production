@@ -182,6 +182,16 @@ Update #1
 
 ## Frontend
 
+Update #35
+- Enhanced registration form with complete name fields:
+  - Added middle name field to the registration form
+  - Added suffix field (Jr., Sr., III, etc.) to the registration form
+  - Updated RegisterFormData interface with new fields
+  - Included new fields in the API request payload
+  - Maintained proper form layout with responsive grid
+  - Added descriptive placeholder for suffix field
+  - Made middle name and suffix optional for better user experience
+
 Update #34
 - Fixed 404 errors for direct link access in Vercel deployment:
   - Added vercel.json configuration file with URL rewrite rules
