@@ -3,6 +3,34 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #27
+- Added admin group management endpoints:
+  - Implemented PUT /api/admin/groups/:id for updating all group fields (including group_type)
+  - Implemented DELETE /api/admin/groups/:id for deleting groups
+  - Both endpoints require admin role and return proper error messages
+- Updated getGroups to include group_type in the response
+- Fixed group_type support in admin group management
+
+Update #26
+- Fixed Group Members API endpoint and added Admin features:
+  - Fixed database query in getGroupMembers function to correctly fetch member data
+  - Updated SQL queries to use proper column names (requesting_user_id instead of borrower_id)
+  - Enhanced week calculation logic with proper thesis_weeks table lookup
+  - Added new adminController with thesis weeks management functionality
+  - Implemented user role management capabilities for administrators
+  - Created group management functions for system admins
+  - Added comprehensive admin API routes with proper authentication
+  - Enhanced database queries with robust error handling
+
+Update #25
+- Added Group Member Management functionality for Finance Coordinators:
+  - Created getGroupMembers API endpoint to fetch all members with their contribution and loan status
+  - Implemented getUserContributions API endpoint for detailed member payment history
+  - Added proper role-based access control for FC-only endpoints
+  - Enhanced database queries with comprehensive member status information
+  - Added proper error handling and validation for member data access
+  - Included weekly contribution status, total contributions, balance due, and active loan amounts
+
 Update #24
 - Enhanced password reset functionality:
   - Improved password reset email template with modern design
@@ -226,6 +254,157 @@ Update #1
 
 ## Frontend
 <!-- (Always make the recent update after this) -->
+
+Update #59
+- Full admin group management now supports group_type (thesis/section)
+- Admin can update and delete groups from the dashboard
+- Fixed all API calls to use the correct admin endpoints
+- Improved error handling and UI feedback for group operations
+
+Update #58
+- Fixed Group Management compatibility issues:
+  - Removed group_type field which doesn't exist in the database schema
+  - Updated API endpoint to use /api/groups/:id/settings for updates
+  - Fixed form field handling to match backend expectations
+  - Simplified interface to match actual database schema
+  - Fixed 404 error when updating groups
+  - Added better error handling and debugging
+
+Update #57
+- Fixed Group Management API endpoint:
+  - Fixed incorrect URL for updating groups
+  - Added better error handling for API responses
+  - Added debug logging for API calls
+  - Improved error message display
+  - Fixed 404 error when updating groups
+
+Update #56
+- Fixed Group Management editing issues:
+  - Fixed group name not showing in edit modal
+  - Fixed group type display in table
+  - Added proper fallback for group name from name field
+  - Added better error messages for update failures
+  - Added logging for debugging group data flow
+  - Fixed group type handling for existing groups
+  - Improved data initialization when editing groups
+
+Update #55
+- Fixed Group Management form issues:
+  - Fixed uncontrolled to controlled input warnings
+  - Added proper type handling for form fields
+  - Fixed group name and type not being properly fetched in edit mode
+  - Improved error handling for API responses
+  - Added proper initialization of form fields when editing
+  - Fixed numeric field handling in forms
+
+Update #54
+- Fixed Group Type handling:
+  - Added fallback to 'thesis' type for existing groups without type
+  - Fixed undefined group_type error in group display
+  - Improved type safety in group management forms
+  - Enhanced backwards compatibility for existing groups
+
+Update #53
+- Enhanced Group Management with Group Type Support:
+  - Added group type field (thesis/section) to group management
+  - Improved group editing functionality with proper form handling
+  - Enhanced form validation for numeric fields
+  - Added proper currency formatting for budget display
+  - Improved field labels and descriptions
+  - Added visual indicators for group types
+  - Fixed group data handling in forms
+
+Update #52
+- Fixed Group Management functionality:
+  - Fixed data fetching when switching to Groups tab
+  - Added proper loading state for Groups tab
+  - Fixed group deletion handlers
+  - Improved error handling for group operations
+  - Added proper type checking and error handling for API responses
+
+Update #51
+- Enhanced Admin Dashboard with Group Management:
+  - Added comprehensive group listing with search functionality
+  - Implemented group creation with configurable settings:
+    - Group name and code generation
+    - Budget goal configuration
+    - Intra-group loan limits and fees
+    - Inter-group loan limits
+  - Added batch operations with multi-select functionality
+  - Added confirmation modals for critical actions
+  - Enhanced UI with detailed group information display
+  - Added responsive design for all screen sizes
+  - Improved form validation and error handling
+
+Update #50
+- Enhanced Admin Dashboard with User Management:
+  - Added comprehensive user listing with search functionality
+  - Implemented user creation with full name fields (first, middle, last, suffix)
+  - Added role assignment (Student, Finance Coordinator, Admin)
+  - Added group assignment capability
+  - Implemented user status management (active/inactive)
+  - Added batch operations with multi-select functionality
+  - Enhanced UI with status badges and role indicators
+  - Added confirmation modals for critical actions
+  - Improved form validation and error handling
+  - Added responsive design for all screen sizes
+
+Update #49
+- Enhanced Admin Dashboard UI and Navigation:
+  - Improved Admin navigation with dedicated admin role support
+  - Completely redesigned thesis week management UI with better contrast and visibility
+  - Added number incrementer/decrementer controls for bulk week addition
+  - Enhanced the bulk add section with clear visual separation and improved preview
+  - Added Select All checkbox for batch operations on thesis weeks
+  - Improved text visibility in dark mode with better color contrast
+  - Added hover effects on table rows for better UX
+  - Implemented responsive design improvements for mobile interfaces
+  - Added contextual information (last week badge) for easier management
+  - Enhanced form controls with better focus states and accessibility
+
+Update #48
+- Enhanced Admin Dashboard with improved UX:
+  - Added custom ConfirmModal component for all confirmation dialogs
+  - Replaced window.confirm with styled modal dialogs for Update and Delete actions
+  - Revamped Bulk Add Weeks UI with improved visual design and clarity
+  - Added preview of weeks to be added in bulk operations
+  - Fixed bulk add logic to always reference the latest week data
+  - Added multi-selection capability for thesis weeks with batch delete option
+  - Improved validation for date inputs with better end date handling
+  - Enhanced visual feedback during selection operations
+  - Improved overall layout and usability of admin controls
+
+Update #47
+- Added comprehensive Admin Dashboard:
+  - Created new Admin page with tabbed interface for system management
+  - Implemented Thesis Weeks management with full CRUD operations
+  - Added date-aware thesis period configuration for loan availability
+  - Added placeholders for User Management and Group Management
+  - Implemented responsive design with mobile-friendly layout
+  - Added role-based access control for admin-only features
+  - Enhanced form validation for thesis week inputs
+  - Added success/error notifications with Toast integration
+  - Improved data visualization with formatted dates
+  - Created reusable admin UI components and data structures
+
+Update #46
+- Implemented Group Member Management for Finance Coordinators:
+  - Created Members page with comprehensive member listing
+  - Added MemberDetail page for individual member contribution history
+  - Implemented search, filtering and sorting functionality
+  - Added tabbed interface for contributions, payments, and loans
+  - Enhanced data visualization with color-coded status badges
+  - Improved mobile responsiveness with adaptive layouts
+  - Added navigation links between member listing and detail views
+  - Implemented role-based access control for FC-only features
+  - Added comprehensive error handling and loading states
+
+Update #45
+- Improved mobile scaling and responsiveness for Login and Register pages:
+  - Used max-w-sm and centered cards for better mobile experience
+  - Added responsive padding and margin classes
+  - Ensured all elements are easily tappable and readable on small screens
+  - Improved spacing and touch targets for mobile usability
 
 Update #44
 - Enhanced password reset UI with modern design:

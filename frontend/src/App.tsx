@@ -12,6 +12,10 @@ import MyLoans from './pages/MyLoans';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
+import GroupSettings from './pages/GroupSettings';
+import Members from './pages/Members';
+import MemberDetail from './pages/MemberDetail';
+import Admin from './pages/Admin';
 import { ToastProvider } from './context/ToastContext';
 import './App.css';
 
@@ -33,6 +37,10 @@ function App() {
           <Route path="/loans/my-loans" element={<MyLoans />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/group-settings" element={<GroupSettings />} />
+          <Route path="/members" element={<Members />} />
+          <Route path="/members/:memberId" element={<MemberDetail />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
           {/* Add more routes here later */}
         </Routes>

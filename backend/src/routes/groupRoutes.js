@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGroup, getGroup, getGroupLimits, getGroupDashboard, regenerateGroupCode } = require('../controllers/groupController');
+const { createGroup, getGroup, getGroupLimits, getGroupDashboard, regenerateGroupCode, updateGroupSettings, getGroupMembers, getUserContributions } = require('../controllers/groupController');
 const { authenticateToken } = require('../middleware/auth');
 
 // Protected routes - require authentication
@@ -20,5 +20,14 @@ router.get('/:groupId/dashboard', getGroupDashboard);
 
 // Regenerate group invitation code
 router.post('/:groupId/regenerate-code', regenerateGroupCode);
+
+// Update group settings (FC only)
+router.put('/:groupId/settings', updateGroupSettings);
+
+// Get all members in a group with their status (FC only)
+router.get('/:groupId/members', getGroupMembers);
+
+// Get detailed contribution history for a specific user (FC only)
+router.get('/users/:userId/contributions', getUserContributions);
 
 module.exports = router; 

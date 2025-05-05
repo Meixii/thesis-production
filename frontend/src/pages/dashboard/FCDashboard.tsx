@@ -69,32 +69,14 @@ const FCDashboard = () => {
           throw new Error(userData.error || 'Failed to fetch user data');
         }
 
-        // Safely access the group ID from the API response
-        // Different APIs might structure the response differently
-        let groupId = 0;
-        let groupName = "Your Group";
-        
-        // Try different possible structures
-        if (userData.data?.groupId) {
-          groupId = userData.data.groupId;
-        } else if (userData.user?.groupId) {
-          groupId = userData.user.groupId;
-        } else if (userData.groupId) {
-          groupId = userData.groupId;
-        }
-        
-        // Safely get the group name
-        if (userData.data?.groupName) {
-          groupName = userData.data.groupName;
-        } else if (userData.user?.groupName) {
-          groupName = userData.user.groupName;
-        } else if (userData.groupName) {
-          groupName = userData.groupName;
-        }
-
         // Log information for debugging
         console.log('User data structure:', userData);
 
+        // Safely access the group ID from the API response
+        // The getProfile endpoint returns a flat object structure
+        let groupId = userData.groupId;
+        let groupName = userData.groupName || "Your Group";
+        
         // If we still don't have a group ID, use a fallback or mock data
         if (!groupId) {
           console.warn('Group ID not found in profile data, using mock data');

@@ -104,7 +104,7 @@
 - [ ] **Frontend:** Display member name, email, current week status, total balance, total contributed, active loan amount.
 - [ ] **Frontend:** Implement filtering/sorting/search for member table.
 - [ ] **Backend:** API endpoint to get detailed payment/contribution history for a specific user (`/api/users/:userId/contributions`).
-- [ ] **Frontend:** Ability to click member to view detailed history (optional).
+- [ ] **Frontend:** Ability to click member to view detailed history.
 
 ### C. Payment Verification
 - [ ] **Backend:** API endpoint to get payments pending verification for the group (`/api/groups/:groupId/payments/pending`).

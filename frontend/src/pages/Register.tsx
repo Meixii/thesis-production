@@ -117,8 +117,8 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-8 px-2 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-sm">
         <h1 className="text-center text-3xl font-bold tracking-tight text-neutral-900 dark:text-white font-display">
           Create your account
         </h1>
@@ -127,8 +127,8 @@ const Register = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card variant="default" className="py-8 px-4 shadow-medium sm:rounded-xl sm:px-10 bg-white dark:bg-neutral-800">
+      <div className="mt-8 mx-auto w-full max-w-sm">
+        <Card variant="default" className="py-8 px-3 sm:px-6 shadow-medium sm:rounded-xl bg-white dark:bg-neutral-800">
           <div className="grid grid-cols-2 gap-3">
             <SocialButton
               provider="google"

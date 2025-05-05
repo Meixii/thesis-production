@@ -1,7 +1,12 @@
 # thesis-production
-For BSCS Batch 2025 Thesis Production Finance
+For BSCS Batch 2026 Thesis
 
 # Thesis Finance Tracker
+
+This web application serves a dual purpose:
+1.  **Thesis Finance Management:** Manages financial contributions and budgets for university thesis projects within specific **Thesis Groups**. It facilitates weekly collections, handles penalties, manages loans, tracks group expenses, and provides transparency via **Finance Coordinator** roles.
+2.  **Section Fund Management:** Enables a class **Treasurer** to manage finances for a broader **Section Group**. This includes assigning specific financial obligations (Dues) to students, tracking their payments, and exporting relevant financial data.
+
 
 ## Overview
 
@@ -11,12 +16,28 @@ This application aims to streamline fund management, reduce manual tracking erro
 
 **Current Time Context:** Calculations and deadlines assume the current date (e.g., May 4, 2025) and Philippine time (PHT). Weekly deadlines are set to Sunday 11:59 PM PHT.
 
+## Roles
+
+* **Student:** A member of either a Thesis Group or a Section Group. Their dashboard and available actions depend on their group type.
+* **Finance Coordinator (FC):** Manages the finances for a specific *Thesis Group* (weekly contributions, loans, group expenses).
+* **Treasurer:** Manages finances for a *Section Group* (assigning dues, tracking payments towards dues) and potentially oversees general class funds. Has export capabilities.
+
+## Onboarding & Joining Groups
+
+1.  **Initial Login:** New users log in.
+2.  **Join Group:** If the user does not belong to a group (`group_id` is NULL), they are prompted (via modal or dedicated page) to enter a **Group Code**.
+3.  **Group Assignment:** Based on the entered code, the system assigns the user to the corresponding group.
+4.  **Dashboard Access:** The user is then directed to the appropriate dashboard based on the `group_type` (`thesis` or `section`) of the group they joined.
+
+
 ## Core Features
 
 **For All Student Users:**
 
 * **Secure Login:** Access personal account.
-* **Dashboard:** View current payment status (paid/unpaid), outstanding balance/late fees, total contribution, and loan status.
+* **Dashboard (Varies by Group Type):**
+    * **Thesis Group Members:** View weekly payment status (paid/unpaid/late), outstanding balance/late fees, total contribution, and loan status. Access features for weekly payments and intra-group loan requests.
+    * **Section Group Members:** View assigned Dues (amounts owed, deadlines, payment status). Access features to pay assigned dues. View general section fund information (if made available by Treasurer).
 * **Weekly Payment:** Initiate payment for the current week's contribution (PHP 10).
 * **Payment Methods:**
     * **GCash/Maya:** Display static QR code, input Reference ID, upload e-receipt screenshot for verification.
@@ -25,7 +46,7 @@ This application aims to streamline fund management, reduce manual tracking erro
 * **Loan Request (Intra-Group):** Request to borrow funds from own group's pool, subject to group limits and a flat PHP 10 fee per loan.
 * **Notifications:** Receive email/in-app reminders for payments, confirmations of payment verification, and loan status updates.
 
-**For Finance Coordinators (Admin Role):**
+**For Finance Coordinators (Thesis Group Role):**
 
 * **Group Dashboard:** Overview of group's financial status: number of unpaid members for the week, total collected funds, total expenses, available balance, progress towards budget goal.
 * **Member Management:** View a table of all group members with their detailed payment history per week, total contributions, balances, and loan details.
@@ -39,13 +60,44 @@ This application aims to streamline fund management, reduce manual tracking erro
     * **Inter-Group:** Initiate loan requests to other groups, review/approve/deny requests from other groups (based on available funds and set limits). Record external fund transfers (with proof) for both borrowing and lending.
 * **Configuration (Potential):** Set group-specific parameters like budget goal, maximum intra-group loan amount per student, maximum inter-group loan amount.
 
+**For Treasurers (Section Group Management):**
+
+* **Section Dashboard Overview:** View overall status of assigned Dues within the Section Group, possibly summary of recent payments.
+* **Dues Management:**
+    * Create new Dues (e.g., "Class Materials Fee") with details: title, description, amount per student, due date.
+    * Assign Dues automatically to all active students within their designated Section Group.
+    * View the payment status (`pending`, `partially_paid`, `paid`, `overdue`) of each student for each assigned Due.
+* **Payment Verification:** Verify pending payments (GCash/Maya/Cash) submitted by students specifically towards *assigned Dues*.
+* **Student Payment Tracking:** Monitor who has paid, partially paid, or is overdue for specific Dues.
+* **Expense Recording (General - Optional):** Ability to record general expenses paid out from central class funds (distinct from FC's group expenses). *(Requires adding category linking to `expenses` table)*.
+* **Income Recording (General - Optional):** Ability to record general income (e.g., fundraising) not tied to specific dues. *(Requires `income_transactions` table)*.
+* **Reporting & Export:**
+    * Export lists/tables (e.g., CSV format) containing:
+        * Status of student payments for specific Dues.
+        * History of verified payments related to Dues.
+        * List of assigned Dues.
+        * (If implemented) General income/expense reports.
+        * (If implemented) Audit logs.
+
+
 ## Key Rules & Logic
 
+**Group Types:**
+    * `thesis`: Weekly PHP 10 contribution, penalty system, intra/inter-group loans apply. Managed by FC.
+    * `section`: No automatic weekly contribution or loan features (within this system). Focuses on Dues assigned by Treasurer.
+* **Thesis Weekly Contribution:** PHP 10 per student in `thesis` groups, due Sunday 11:59 PM PHT. Penalty applies as previously defined if late.
+* **Thesis Loans:** Intra-group (PHP 10 flat fee, subject to limits) and Inter-group loans available for `thesis` groups, managed by FCs.
+* **Dues System (Section Groups):**
+    * Treasurer creates a `Due` defining an amount owed per student by a specific date.
+    * The system automatically creates a `user_dues` record linking each student in the section group to that `Due`.
+    * Students pay towards their `user_dues` record using the standard payment methods.
+    * Treasurer verifies these payments. The `user_dues` status (`pending`, `partially_paid`, `paid`, `overdue`) is updated based on verified payments.
+* **Partial Payments:** Students can make partial payments towards weekly contributions (thesis) or assigned dues (section). The system tracks the remaining balance. *Specific allocation logic for partial payments on thesis contributions needs to be followed as defined previously.*
+* **Payment Verification:** All non-cash payments require verification (screenshot/Ref ID check) by the relevant authority (FC or Treasurer) before funds are considered "received". Cash payments require manual confirmation by FC/Treasurer.
 * **Weekly Contribution:** PHP 10 per student, due by Sunday 11:59 PM PHT.
 * **Penalty Calculation:** If unpaid by the deadline, the amount due for the *next* week becomes:
     `(Number of Previously Missed Weeks * 10 PHP) + (Current Week's 10 PHP) + (Number of Previously Missed Weeks as Penalty Fee)`
     * Example (2 missed weeks): `(2 * 10) + 10 + 2 = 32 PHP` due.
-* **Partial Payments:** Users can choose to allocate their payment to specific outstanding dues.
 * **Intra-Group Loans:** Flat fee of PHP 10 per loan. Maximum loan amount per student is set by the group/system config. Must be requested/managed via the app. Disbursement/repayment handled externally but recorded in-app. Available starting from the thesis period.
 * **Inter-Group Loans:** Facilitated via FCs. Maximum loan amount between groups set by system/group config. Requires approval from the lending group's FC. External transfer required, proof recorded in-app.
 * **Cash Handling:** Relies on student initiating "Pay Cash" in-app and FC verifying upon physical receipt. Regular audits recommended.
@@ -66,13 +118,15 @@ Here's a proposed schema structure. Specific constraints (e.g., `CHECK` constrai
 
 ```sql
 -- Enum Types (if supported or map to VARCHAR with CHECK constraints)
-CREATE TYPE user_role AS ENUM ('student', 'finance_coordinator');
+CREATE TYPE user_role AS ENUM ('student', 'finance_coordinator', 'treasurer', 'admin');
+CREATE TYPE group_type_enum AS ENUM ('thesis', 'section');
 CREATE TYPE payment_method AS ENUM ('gcash', 'maya', 'cash');
 CREATE TYPE payment_status AS ENUM ('pending_verification', 'verified', 'rejected');
 CREATE TYPE contribution_status AS ENUM ('paid', 'unpaid', 'late'); -- 'late' implies 'unpaid' for a past week
 CREATE TYPE loan_type AS ENUM ('intra_group', 'inter_group');
 CREATE TYPE loan_status AS ENUM ('requested', 'approved', 'rejected', 'disbursed', 'partially_repaid', 'fully_repaid', 'cancelled');
 CREATE TYPE notification_type AS ENUM ('reminder', 'confirmation', 'alert', 'loan_update', 'expense_update');
+CREATE TYPE user_due_status AS ENUM ('pending', 'partially_paid', 'paid', 'overdue');
 
 
 -- Table for Thesis Groups
@@ -92,7 +146,7 @@ CREATE TABLE groups (
 -- Table for Users (Students/Finance Coordinators)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    group_id INT REFERENCES groups(id) ON DELETE CASCADE,
     full_name VARCHAR(150) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -220,3 +274,37 @@ CREATE TABLE notifications (
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- NEW Table for Dues (Assigned Expenses by Treasurer)
+CREATE TABLE dues (
+    id SERIAL PRIMARY KEY,
+    created_by_user_id INT NOT NULL REFERENCES users(id), -- Treasurer creating it
+    group_id INT NOT NULL REFERENCES groups(id), -- The Section group this applies to (CHECK group_type='section')
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    total_amount_due NUMERIC(10, 2) NOT NULL, -- Amount EACH assigned student owes
+    due_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table linking Dues to specific Users in the Section Group
+CREATE TABLE user_dues (
+    id SERIAL PRIMARY KEY,
+    due_id INT NOT NULL REFERENCES dues(id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status user_due_status DEFAULT 'pending',
+    amount_paid NUMERIC(10, 2) DEFAULT 0.00,
+    last_payment_date TIMESTAMP WITH TIME ZONE NULL,
+    UNIQUE (due_id, user_id)
+);
+
+-- Linking Table for Payment Allocations towards Dues (Recommended for detailed tracking)
+CREATE TABLE payment_allocations_dues (
+    id SERIAL PRIMARY KEY,
+    payment_id INT NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+    user_due_id INT NOT NULL REFERENCES user_dues(id) ON DELETE CASCADE,
+    amount_allocated NUMERIC(10, 2) NOT NULL,
+    allocated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(payment_id, user_due_id)
+);
+

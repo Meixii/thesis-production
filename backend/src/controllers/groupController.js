@@ -197,12 +197,12 @@ const getGroupDashboard = async (req, res) => {
     // Active loans information (sum of disbursed but not fully repaid loans)
     const activeLoansResult = await db.query(
       `SELECT 
-         COALESCE(SUM(l.amount), 0) as total_disbursed,
+         COALESCE(SUM(l.amount_approved), 0) as total_disbursed,
          COALESCE(SUM(l.total_amount_repaid), 0) as total_repaid
        FROM loans l
-       JOIN users u ON l.borrower_id = u.id
+       JOIN users u ON l.requesting_user_id = u.id
        WHERE u.group_id = $1 
-       AND l.status = 'disbursed' OR l.status = 'partially_repaid'`,
+       AND (l.status = 'disbursed' OR l.status = 'partially_repaid')`,
       [groupId]
     );
     
@@ -347,10 +347,326 @@ const regenerateGroupCode = async (req, res) => {
   }
 };
 
+/**
+ * Update group settings (FC only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateGroupSettings = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { group_name, budget_goal, max_intra_loan_per_student, max_inter_loan_limit, intra_loan_flat_fee } = req.body;
+
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can update group settings' });
+    }
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only update your own group' });
+    }
+
+    // Update group settings
+    const updateResult = await db.query(
+      `UPDATE groups SET
+        group_name = $1,
+        budget_goal = $2,
+        max_intra_loan_per_student = $3,
+        max_inter_loan_limit = $4,
+        intra_loan_flat_fee = $5
+      WHERE id = $6
+      RETURNING id, group_name, group_code, budget_goal, max_intra_loan_per_student, max_inter_loan_limit, intra_loan_flat_fee`,
+      [group_name, budget_goal, max_intra_loan_per_student, max_inter_loan_limit, intra_loan_flat_fee, groupId]
+    );
+
+    if (!updateResult.rows.length) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    res.json({
+      message: 'Group settings updated successfully',
+      group: updateResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Update group settings error:', error);
+    res.status(500).json({ error: 'Server error while updating group settings' });
+  }
+};
+
+/**
+ * Get all members in a specific group with their contribution and loan status
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getGroupMembers = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+    
+    // Only finance coordinators can access this endpoint
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can access group members' });
+    }
+    
+    // Finance coordinators can only access their own group's members
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only access your own group\'s members' });
+    }
+    
+    // Get current week for filtering
+    const currentDate = new Date();
+    
+    // Find the current week from thesis_weeks table rather than calculating
+    const currentWeekResult = await db.query(
+      `SELECT id, week_number, start_date FROM thesis_weeks 
+       WHERE $1 BETWEEN start_date AND end_date
+       LIMIT 1`,
+      [currentDate]
+    );
+    
+    let currentWeek = null;
+    if (currentWeekResult.rows.length > 0) {
+      currentWeek = currentWeekResult.rows[0].week_number;
+    } else {
+      // Fallback to calculating week number if not found in thesis_weeks
+      currentWeek = Math.ceil((currentDate - new Date(currentDate.getFullYear(), 0, 1)) / 604800000);
+    }
+    
+    // Get all members with their contribution and loan status
+    const membersResult = await db.query(
+      `SELECT 
+         u.id,
+         u.first_name,
+         u.last_name,
+         u.email,
+         u.role,
+         (
+           SELECT wc.status
+           FROM weekly_contributions wc
+           WHERE wc.user_id = u.id
+           AND DATE_PART('week', wc.week_start_date) = DATE_PART('week', CURRENT_DATE)
+           LIMIT 1
+         ) as current_week_status,
+         (
+           SELECT COALESCE(SUM(wc.amount_paid), 0)
+           FROM weekly_contributions wc
+           WHERE wc.user_id = u.id
+         ) as total_contributed,
+         (
+           SELECT COALESCE(SUM(wc.base_contribution_due + wc.penalty_applied - wc.amount_paid), 0)
+           FROM weekly_contributions wc
+           WHERE wc.user_id = u.id
+           AND wc.status IN ('unpaid', 'late')
+         ) as total_balance,
+         (
+           SELECT COALESCE(SUM(l.amount_approved - l.total_amount_repaid), 0)
+           FROM loans l
+           WHERE l.requesting_user_id = u.id
+           AND l.status IN ('disbursed', 'partially_repaid')
+         ) as active_loan_amount
+       FROM users u
+       WHERE u.group_id = $1
+       ORDER BY u.last_name, u.first_name`,
+      [groupId]
+    );
+    
+    res.json({
+      group_id: groupId,
+      members: membersResult.rows.map(member => ({
+        id: member.id,
+        name: `${member.first_name} ${member.last_name}`,
+        email: member.email,
+        role: member.role,
+        current_week_status: member.current_week_status || 'unpaid',
+        total_contributed: parseFloat(member.total_contributed) || 0,
+        total_balance: parseFloat(member.total_balance) || 0,
+        active_loan_amount: parseFloat(member.active_loan_amount) || 0
+      }))
+    });
+  } catch (error) {
+    console.error('Get group members error:', error);
+    res.status(500).json({ error: 'Server error while fetching group members' });
+  }
+};
+
+/**
+ * Get detailed contribution and payment history for a specific user
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getUserContributions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Verify user is a finance coordinator and has access to this user
+    const currentUserResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    
+    if (!currentUserResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userRole = currentUserResult.rows[0].role;
+    const userGroupId = currentUserResult.rows[0].group_id;
+    
+    // Only finance coordinators can access this endpoint
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can access user contributions' });
+    }
+    
+    // Check if the target user belongs to the finance coordinator's group
+    const targetUserResult = await db.query(
+      'SELECT id, first_name, last_name, email, group_id FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (!targetUserResult.rows.length) {
+      return res.status(404).json({ error: 'Target user not found' });
+    }
+    
+    const targetUser = targetUserResult.rows[0];
+    
+    // Finance coordinators can only access users in their own group
+    if (targetUser.group_id != userGroupId) {
+      return res.status(403).json({ error: 'You can only access users in your own group' });
+    }
+    
+    // Get user contributions (weekly)
+    const contributionsResult = await db.query(
+      `SELECT 
+         wc.id,
+         wc.week_number,
+         wc.week_start_date,
+         wc.status,
+         wc.base_contribution_due,
+         wc.penalty_applied,
+         wc.amount_paid,
+         wc.updated_at
+       FROM weekly_contributions wc
+       WHERE wc.user_id = $1
+       ORDER BY wc.week_number DESC`,
+      [userId]
+    );
+    
+    // Get user payments
+    const paymentsResult = await db.query(
+      `SELECT 
+         p.id,
+         p.amount,
+         p.method,
+         p.status,
+         p.reference_id,
+         p.receipt_url,
+         p.created_at,
+         p.verified_at,
+         (
+           SELECT CONCAT(u.first_name, ' ', u.last_name)
+           FROM users u
+           WHERE u.id = p.verified_by_user_id
+         ) as verified_by
+       FROM payments p
+       WHERE p.user_id = $1
+       ORDER BY p.created_at DESC`,
+      [userId]
+    );
+    
+    // Get user active loans
+    const loansResult = await db.query(
+      `SELECT 
+         l.id,
+         l.loan_type,
+         l.amount_approved,
+         l.fee_applied,
+         l.status,
+         l.total_amount_repaid,
+         l.request_date,
+         l.disbursement_date,
+         l.due_date
+       FROM loans l
+       WHERE l.requesting_user_id = $1
+       ORDER BY l.request_date DESC`,
+      [userId]
+    );
+    
+    res.json({
+      user: {
+        id: targetUser.id,
+        name: `${targetUser.first_name} ${targetUser.last_name}`,
+        email: targetUser.email
+      },
+      contributions: contributionsResult.rows.map(contribution => ({
+        id: contribution.id,
+        week_number: contribution.week_number,
+        week_start_date: contribution.week_start_date,
+        status: contribution.status,
+        base_amount: parseFloat(contribution.base_contribution_due),
+        penalty: parseFloat(contribution.penalty_applied),
+        amount_paid: parseFloat(contribution.amount_paid),
+        amount_due: parseFloat(contribution.base_contribution_due) + parseFloat(contribution.penalty_applied) - parseFloat(contribution.amount_paid),
+        updated_at: contribution.updated_at
+      })),
+      payments: paymentsResult.rows.map(payment => ({
+        id: payment.id,
+        amount: parseFloat(payment.amount),
+        method: payment.method,
+        status: payment.status,
+        reference_id: payment.reference_id,
+        receipt_url: payment.receipt_url,
+        created_at: payment.created_at,
+        verified_at: payment.verified_at,
+        verified_by: payment.verified_by
+      })),
+      loans: loansResult.rows.map(loan => ({
+        id: loan.id,
+        loan_type: loan.loan_type,
+        amount: parseFloat(loan.amount_approved),
+        fee: parseFloat(loan.fee_applied),
+        status: loan.status,
+        amount_repaid: parseFloat(loan.total_amount_repaid),
+        amount_remaining: parseFloat(loan.amount_approved) - parseFloat(loan.total_amount_repaid),
+        request_date: loan.request_date,
+        disbursement_date: loan.disbursement_date,
+        due_date: loan.due_date
+      }))
+    });
+  } catch (error) {
+    console.error('Get user contributions error:', error);
+    res.status(500).json({ error: 'Server error while fetching user contributions' });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroup,
   getGroupLimits,
   getGroupDashboard,
-  regenerateGroupCode
+  regenerateGroupCode,
+  updateGroupSettings,
+  getGroupMembers,
+  getUserContributions
 }; 

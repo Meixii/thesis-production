@@ -13,6 +13,7 @@ const studentRoutes = require('./routes/studentRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const loanRoutes = require('./routes/loanRoutes');
 const groupRoutes = require('./routes/groupRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/student', studentRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

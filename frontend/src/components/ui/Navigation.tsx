@@ -6,11 +6,11 @@ interface NavigationItem {
   name: string;
   href: string;
   icon: (props: { className?: string }) => React.ReactElement;
-  roles?: Array<'student' | 'finance_coordinator'>;
+  roles?: Array<'student' | 'finance_coordinator' | 'admin'>;
 }
 
 interface NavigationProps {
-  userRole?: 'student' | 'finance_coordinator';
+  userRole?: 'student' | 'finance_coordinator' | 'admin';
   onLogout?: () => void;
 }
 
@@ -36,7 +36,29 @@ const defaultNavigationItems: NavigationItem[] = [
         <rect x="3" y="14" width="7" height="7" />
       </svg>
     ),
-    roles: ['student', 'finance_coordinator']
+    roles: ['student', 'finance_coordinator', 'admin']
+  },
+  {
+    name: 'Admin Panel',
+    href: '/admin',
+    icon: (props) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        <path d="M22 12h-4"></path>
+      </svg>
+    ),
+    roles: ['admin']
+  },
+  {
+    name: 'Group Settings',
+    href: '/group-settings',
+    icon: (props) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 5 15.4a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6V4a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 16 5.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19 8.6c.2.29.31.63.31.99 0 .36-.11.7-.31.99z" /></svg>
+    ),
+    roles: ['finance_coordinator']
   },
   {
     name: 'Payments',
@@ -183,7 +205,7 @@ const Navigation: React.FC<NavigationProps> = ({
   onLogout 
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [currentRole, setCurrentRole] = useState<'student' | 'finance_coordinator'>(userRole);
+  const [currentRole, setCurrentRole] = useState<'student' | 'finance_coordinator' | 'admin'>(userRole);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -195,7 +217,9 @@ const Navigation: React.FC<NavigationProps> = ({
     }
 
     // Otherwise try to determine the user's role from the current route or API
-    if (location.pathname.includes('/dashboard/fc')) {
+    if (location.pathname.includes('/admin')) {
+      setCurrentRole('admin');
+    } else if (location.pathname.includes('/dashboard/fc')) {
       setCurrentRole('finance_coordinator');
     } else if (location.pathname.includes('/dashboard/student')) {
       setCurrentRole('student');
@@ -216,7 +240,13 @@ const Navigation: React.FC<NavigationProps> = ({
           const data = await response.json();
           if (response.ok && data.data?.role) {
             const role = data.data.role.toLowerCase();
-            setCurrentRole(role === 'finance_coordinator' ? 'finance_coordinator' : 'student');
+            if (role === 'admin') {
+              setCurrentRole('admin');
+            } else if (role === 'finance_coordinator' || role === 'fc') {
+              setCurrentRole('finance_coordinator'); 
+            } else {
+              setCurrentRole('student');
+            }
           }
         } catch (error) {
           console.error('Failed to fetch user role:', error);
@@ -232,7 +262,11 @@ const Navigation: React.FC<NavigationProps> = ({
     if (item.name === 'Dashboard') {
       return {
         ...item,
-        href: currentRole === 'finance_coordinator' ? '/dashboard/fc' : '/dashboard/student'
+        href: currentRole === 'admin' 
+          ? '/admin' 
+          : currentRole === 'finance_coordinator' 
+            ? '/dashboard/fc' 
+            : '/dashboard/student'
       };
     }
     return item;

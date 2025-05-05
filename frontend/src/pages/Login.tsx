@@ -73,7 +73,10 @@ const Login = () => {
       }
       
       // Handle various formats of role string
-      if (userRole === 'finance_coordinator' || userRole === 'fc' || userRole === 'finance coordinator') {
+      if (userRole === 'admin') {
+        showToast('Logged in as Admin', 'success');
+        navigate('/admin');
+      } else if (userRole === 'finance_coordinator' || userRole === 'fc' || userRole === 'finance coordinator') {
         showToast('Logged in as Finance Coordinator', 'success');
         navigate('/dashboard/fc');
       } else {
@@ -93,8 +96,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-8 px-2 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-sm">
         <h1 className="text-center text-3xl font-bold tracking-tight text-neutral-900 dark:text-white font-display">
           Welcome back!
         </h1>
@@ -103,8 +106,8 @@ const Login = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card variant="default" className="py-8 px-4 shadow-medium sm:rounded-xl sm:px-10 bg-white dark:bg-neutral-800">
+      <div className="mt-8 mx-auto w-full max-w-sm">
+        <Card variant="default" className="py-8 px-3 sm:px-6 shadow-medium sm:rounded-xl bg-white dark:bg-neutral-800">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="rounded-lg bg-red-50 dark:bg-red-900/30 p-4 border border-red-200 dark:border-red-800">
