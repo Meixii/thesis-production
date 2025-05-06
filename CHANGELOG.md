@@ -3,6 +3,13 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #33
+- Fixed payment rejection functionality in Section Student Dashboard:
+  - Added proper transaction handling for payment rejection
+  - Fixed SQL query to correctly join payment_allocations_dues table
+  - Added proper error handling and connection management
+  - Resolved 500 error when rejecting payments
+
 Update #32
 - Enhanced Section Student Dashboard search functionality:
   - Added comprehensive search across all due fields (title, description, status, amount, date)

@@ -585,6 +585,7 @@ const verifyPayment = async (req, res) => {
  * @param {Object} res - Express response object
  */
 const rejectPayment = async (req, res) => {
+  const client = await db.connect();
   try {
     if (req.user.role !== 'treasurer') {
       return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
@@ -593,16 +594,19 @@ const rejectPayment = async (req, res) => {
     const { paymentId } = req.params;
     const groupId = req.user.groupId;
 
-    // Verify payment belongs to treasurer's group
-    const result = await db.query(
+    await client.query('BEGIN');
+
+    // Verify payment belongs to treasurer's group and is pending
+    const result = await client.query(
       `UPDATE payments p
        SET status = 'rejected',
            verified_at = NOW(),
            verified_by_user_id = $1
-       FROM user_dues ud
+       FROM payment_allocations_dues pad
+       JOIN user_dues ud ON pad.user_due_id = ud.id
        JOIN dues d ON ud.due_id = d.id
        WHERE p.id = $2 
-         AND p.user_due_id = ud.id
+         AND pad.payment_id = p.id
          AND d.group_id = $3 
          AND p.status = 'pending_verification'
        RETURNING p.id`,
@@ -610,13 +614,18 @@ const rejectPayment = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Payment not found or already processed' });
     }
 
+    await client.query('COMMIT');
     res.json({ message: 'Payment rejected successfully' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Reject payment error:', error);
     res.status(500).json({ error: 'Server error while rejecting payment' });
+  } finally {
+    client.release();
   }
 };
 
