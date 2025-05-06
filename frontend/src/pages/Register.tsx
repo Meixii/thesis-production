@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import Divider from '../components/ui/Divider';
-import SocialButton from '../components/ui/SocialButton';
+// import Divider from '../components/ui/Divider';
+// import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../utils/api';
 import { validatePassword, validateEmail, type PasswordValidation } from '../utils/validation';
 
@@ -31,7 +31,7 @@ const Register = () => {
     hasSpecialChar: false
   });
   const [emailError, setEmailError] = useState('');
-  const [lastNameError, setLastNameError] = useState('');
+  // const [lastNameError, setLastNameError] = useState('');
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
     middleName: '',
