@@ -10,16 +10,9 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Get the primary frontend URL (first URL in the list)
-const getPrimaryFrontendUrl = () => {
-  const urls = process.env.FRONTEND_URL.split(',');
-  return urls[0].trim(); // Use the first URL and remove any whitespace
-};
-
 const sendVerificationEmail = async (email, token) => {
   try {
-    const baseUrl = getPrimaryFrontendUrl();
-    const verificationUrl = `${baseUrl}/verify-email/${token}`;
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -53,8 +46,7 @@ const sendVerificationEmail = async (email, token) => {
 
 const sendPasswordResetEmail = async (email, token) => {
   try {
-    const baseUrl = getPrimaryFrontendUrl();
-    const resetUrl = `${baseUrl}/reset-password/${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
