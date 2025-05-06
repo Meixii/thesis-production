@@ -115,7 +115,7 @@ const GroupSettingsPage = () => {
 
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
-      <Navigation userRole="finance_coordinator" />
+      <Navigation userRole="finance_coordinator" onLogout={() => {}} />
       <main className="max-w-xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-6">Group Settings</h1>
         <Card className="p-8 bg-white dark:bg-neutral-800 shadow-lg">

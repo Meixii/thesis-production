@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../../utils/api';
 import Button from '../ui/Button';
-import Card from '../ui/Card';
 import { useToast } from '../../context/ToastContext';
 import StatCard from '../ui/StatCard';
 import Navigation from '../ui/Navigation';

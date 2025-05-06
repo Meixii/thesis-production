@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import Divider from '../components/ui/Divider';
-import SocialButton from '../components/ui/SocialButton';
+// import Divider from '../components/ui/Divider';
+// import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -41,18 +41,18 @@ const getRoleFromResponse = (data: any): UserRole => {
   }
 };
 
-const getRedirectPath = (role: UserRole): string => {
-  switch (role) {
-    case 'admin':
-      return '/admin';
-    case 'finance_coordinator':
-      return '/dashboard/fc';
-    case 'treasurer':
-      return '/treasurer';
-    default:
-      return '/dashboard/student';
-  }
-};
+// const getRedirectPath = (role: UserRole): string => {
+//   switch (role) {
+//     case 'admin':
+//       return '/admin';
+//     case 'finance_coordinator':
+//       return '/dashboard/fc';
+//     case 'treasurer':
+//       return '/treasurer';
+//     default:
+//       return '/dashboard/student';
+//   }
+// };
 
 const Login = () => {
   const navigate = useNavigate();

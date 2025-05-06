@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import Button from './Button';
+// import Button from './Button';
 
 interface NavigationProps {
   userRole: 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
@@ -17,7 +17,7 @@ interface NavItem {
 const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const getTreasurerNavItems = (): NavItem[] => [
   {

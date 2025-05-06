@@ -37,7 +37,6 @@ const Profile = () => {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [joinGroupModalOpen, setJoinGroupModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -63,7 +62,6 @@ const Profile = () => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-  const [croppedImage, setCroppedImage] = useState<Blob | null>(null);
 
   // Password validation rules
   const passwordRules = {
@@ -174,7 +172,6 @@ const Profile = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to change password';
       showToast(errorMessage, 'error');
-      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -245,7 +242,7 @@ const Profile = () => {
         });
       } catch (err) {
         console.error('Profile error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load profile data');
+        showToast(err instanceof Error ? err.message : 'Failed to load profile data', 'error');
       } finally {
         setLoading(false);
       }
@@ -270,7 +267,6 @@ const Profile = () => {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
 
     try {
       const token = localStorage.getItem('token');
@@ -303,7 +299,7 @@ const Profile = () => {
       setEditMode(false);
       showToast('Profile updated successfully!', 'success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile');
+      showToast(err instanceof Error ? err.message : 'Failed to update profile', 'error');
     } finally {
       setSaving(false);
     }
@@ -314,44 +310,44 @@ const Profile = () => {
     window.location.href = '/dashboard';
   };
 
-  const handleLeaveGroup = async () => {
-    if (!confirm('Are you sure you want to leave your current group?')) {
-      return;
-    }
+  // const handleLeaveGroup = async () => {
+  //   if (!confirm('Are you sure you want to leave your current group?')) {
+  //     return;
+  //   }
 
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(getApiUrl('/api/student/leave-group'), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  //   try {
+  //     setLoading(true);
+  //     const token = localStorage.getItem('token');
+  //     const response = await fetch(getApiUrl('/api/student/leave-group'), {
+  //       method: 'POST',
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //         'Content-Type': 'application/json'
+  //       }
+  //     });
 
-      const data = await response.json();
+  //     const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to leave group');
-      }
+  //     if (!response.ok) {
+  //       throw new Error(data.error || 'Failed to leave group');
+  //     }
 
-      // Update local profile state
-      if (profile) {
-        setProfile({
-          ...profile,
-          groupId: undefined,
-          groupName: undefined
-        });
-      }
+  //     // Update local profile state
+  //     if (profile) {
+  //       setProfile({
+  //         ...profile,
+  //         groupId: undefined,
+  //         groupName: undefined
+  //       });
+  //     }
 
-      showToast('Successfully left group', 'success');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to leave group');
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     showToast('Successfully left group', 'success');
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : 'Failed to leave group');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   // Generate Group Code for Finance Coordinators
   const handleGenerateGroupCode = async () => {
@@ -376,7 +372,7 @@ const Profile = () => {
       // Reload profile data to get updated group information
       window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate new group code');
+      showToast(err instanceof Error ? err.message : 'Failed to generate new group code', 'error');
     } finally {
       setLoading(false);
     }
@@ -412,7 +408,6 @@ const Profile = () => {
     try {
       // Crop the image to a blob
       const croppedBlob = await getCroppedImg(URL.createObjectURL(selectedFile), croppedAreaPixels);
-      setCroppedImage(croppedBlob);
       // Upload the cropped image
       const formData = new FormData();
       formData.append('profilePic', croppedBlob, selectedFile.name);
@@ -435,7 +430,6 @@ const Profile = () => {
       showToast('Profile picture updated!', 'success');
       setCropModalOpen(false);
       setSelectedFile(null);
-      setCroppedImage(null);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Failed to upload profile picture');
     } finally {
@@ -446,7 +440,7 @@ const Profile = () => {
   // Change image (reopen file picker)
   const handleChangeImage = () => {
     setSelectedFile(null);
-    setCroppedImage(null);
+    setCroppedAreaPixels(null);
     setCropModalOpen(false);
     if (fileInputRef.current) fileInputRef.current.click();
   };
@@ -454,7 +448,7 @@ const Profile = () => {
   // Cancel crop/upload
   const handleCancelCrop = () => {
     setSelectedFile(null);
-    setCroppedImage(null);
+    setCroppedAreaPixels(null);
     setCropModalOpen(false);
   };
 
@@ -589,7 +583,7 @@ const Profile = () => {
             </div>
             <p className="mt-2 text-gray-600 dark:text-gray-300 text-base">
               {profile?.email}
-            </p>
+          </p>
           </div>
         </div>
 

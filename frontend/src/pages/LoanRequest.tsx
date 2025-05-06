@@ -160,7 +160,7 @@ const LoanRequest = () => {
   if (noGroupError) {
     return (
       <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
-        <Navigation onLogout={handleLogout} />
+        <Navigation onLogout={handleLogout} userRole="student" />
         
         <div className="max-w-md mx-auto px-4 py-10">
           <Card className="bg-white dark:bg-neutral-800 shadow-lg border-0 rounded-xl overflow-hidden">
@@ -199,7 +199,7 @@ const LoanRequest = () => {
 
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
-      <Navigation onLogout={handleLogout} />
+      <Navigation onLogout={handleLogout} userRole="student" />
       
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Title */}

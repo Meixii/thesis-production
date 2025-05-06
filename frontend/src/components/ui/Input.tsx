@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from 'react';
-import { ValidationError } from '../../utils/validation';
+// import { ValidationError } from '../../utils/validation';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -12,9 +12,9 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, containerClassName = '', className = '', labelClassName = '', type, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
-    const baseInputClasses = 'mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 sm:text-sm transition-colors duration-200';
-    const validClasses = 'border-secondary-light dark:border-neutral-600 focus:ring-primary dark:focus:ring-primary-light focus:border-primary dark:focus:border-primary-light dark:bg-neutral-700 dark:text-white';
-    const errorClasses = 'border-error-dark dark:border-error-light focus:ring-error dark:focus:ring-error-light focus:border-error dark:focus:border-error-light bg-error-light/5 dark:bg-error-dark/10 text-error-dark dark:text-error-light';
+    // const baseInputClasses = 'mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 sm:text-sm transition-colors duration-200';
+    // const validClasses = 'border-secondary-light dark:border-neutral-600 focus:ring-primary dark:focus:ring-primary-light focus:border-primary dark:focus:border-primary-light dark:bg-neutral-700 dark:text-white';
+    // const errorClasses = 'border-error-dark dark:border-error-light focus:ring-error dark:focus:ring-error-light focus:border-error dark:focus:border-error-light bg-error-light/5 dark:bg-error-dark/10 text-error-dark dark:text-error-light';
 
     const isPassword = type === 'password';
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;

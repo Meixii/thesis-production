@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../utils/api';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -10,7 +10,7 @@ const JoinGroupStep = () => {
   const [groupCode, setGroupCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {

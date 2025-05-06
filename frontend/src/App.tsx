@@ -25,13 +25,13 @@ import DueDetails from './components/treasurer/DueDetails';
 import PendingPayments from './components/treasurer/PendingPayments';
 import ExportData from './components/treasurer/ExportData';
 import ProtectedRoute from './components/ProtectedRoute';
-import TreasurerProfile from './components/treasurer/TreasurerProfile';
+//import TreasurerProfile from './components/treasurer/TreasurerProfile';
 import JoinGroupStep from './pages/JoinGroupStep';
 import React, { useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getApiUrl } from './utils/api';
 import DashboardRouter from './pages/DashboardRouter';
-import StudentDashboardGuard from './pages/dashboard/StudentDashboardGuard';
+//import StudentDashboardGuard from './pages/dashboard/StudentDashboardGuard';
 import SectionStudentDashboardGuard from './pages/dashboard/SectionStudentDashboardGuard';
 
 function RequireGroup({ children }: { children: ReactNode }) {

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../utils/api';
-import JoinGroup from '../components/groups/JoinGroup';
+// import JoinGroup from '../components/groups/JoinGroup';
 
 const DashboardRouter = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [noGroup, setNoGroup] = useState(false);
-  const [joinGroupModalOpen, setJoinGroupModalOpen] = useState(false);
+  // const [joinGroupModalOpen, setJoinGroupModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -63,7 +63,7 @@ const DashboardRouter = () => {
   if (noGroup) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-secondary dark:bg-neutral-900">
-        <JoinGroup isOpen={true} onClose={() => setJoinGroupModalOpen(false)} onSuccess={() => window.location.reload()} />
+        {/* <JoinGroup isOpen={true} onClose={() => setJoinGroupModalOpen(false)} onSuccess={() => window.location.reload()} /> */}
       </div>
     );
   }
