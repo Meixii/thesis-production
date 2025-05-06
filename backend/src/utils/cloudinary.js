@@ -52,39 +52,39 @@ const formatProfilePicFilename = (lastName, date = new Date()) => {
  * @returns {Promise<Object>} - Cloudinary upload response
  */
 const uploadToCloudinary = async (file, metadata = {}) => {
-  // Try unsigned upload first as it's more reliable with your configuration
   try {
     // Convert the buffer to base64
     const b64 = Buffer.from(file.buffer).toString('base64');
     const dataURI = `data:${file.mimetype};base64,${b64}`;
 
     let publicId;
+    let folder;
     if (metadata.profilePic && metadata.lastName) {
       // Profile picture upload
-      publicId = `profile_pics/${formatProfilePicFilename(metadata.lastName)}`;
+      folder = 'profile_pics';
+      publicId = formatProfilePicFilename(metadata.lastName);
     } else if (metadata.lastName && metadata.paymentMethod) {
       // Payment receipt upload
-      publicId = `payments/${generateReceiptFilename(metadata.lastName, metadata.paymentMethod)}`;
+      folder = 'payments';
+      publicId = generateReceiptFilename(metadata.lastName, metadata.paymentMethod);
     } else {
       // Fallback
-      publicId = `uploads/${Date.now()}`;
+      folder = 'uploads';
+      publicId = Date.now().toString();
     }
 
-    const uploadOptions = {
+    // Upload to Cloudinary using signed upload
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: folder,
       public_id: publicId,
       resource_type: 'auto',
-    };
-
-    // Upload to Cloudinary using the unsigned upload preset
-    const result = await cloudinary.uploader.unsigned_upload(
-      dataURI,
-      'thesis_finance_receipts',
-      uploadOptions
-    );
+      overwrite: true,
+      invalidate: true
+    });
 
     return result;
   } catch (error) {
-    console.error('Cloudinary unsigned upload error:', error);
+    console.error('Cloudinary upload error:', error);
     throw error;
   }
 };
