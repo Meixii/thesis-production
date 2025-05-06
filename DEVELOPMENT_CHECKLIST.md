@@ -198,3 +198,32 @@
 - [ ] Perform User Acceptance Testing (UAT) with actual thesis group members/FCs.
 - [ ] Address bugs and refine UI/UX based on feedback.
 - [ ] Code review and refactoring.
+
+## IX. Treasurer Features (Section Group Management)
+
+*(Note: All endpoints/UI should be restricted to users with 'treasurer' role)*
+
+### A. Dashboard & Overview
+- [ ] **Backend:** API endpoint for Treasurer's dashboard data (`/api/treasurer/dashboard`). (Summary of Dues status, recent payments towards dues, etc.).
+- [ ] **Frontend:** Create Treasurer Dashboard UI.
+
+### B. Dues Management
+- [ ] **Backend:** API endpoint `POST /api/treasurer/dues` to create a new Due. (Includes logic to create `user_dues` records for all users in the specified section group).
+- [ ] **Backend:** API endpoints `GET /api/treasurer/dues` to list created Dues.
+- [ ] **Backend:** API endpoint `GET /api/treasurer/dues/:dueId/status` to get payment status of all users for a specific Due (uses `user_dues` data).
+- [ ] **Frontend:** UI for Treasurer to create a new Due (form for title, description, amount, due date).
+- [ ] **Frontend:** UI for Treasurer to view list of created Dues.
+- [ ] **Frontend:** UI for Treasurer to view detailed payment status per student for a selected Due.
+
+### C. Payment Verification (for Dues)
+- [ ] **Backend:** Modify API endpoint `GET /api/payments/pending` to allow Treasurer to fetch payments pending verification where `purpose` indicates a Due payment within their section group(s).
+- [ ] **Frontend:** Modify/Reuse Payment Verification UI for Treasurer (Context: Verifying Due payments). Show relevant details (Student, Due Title, Amount Paid).
+- [ ] **Backend:** Modify `verify/reject` payment API (`/api/payments/:paymentId/...`):
+    - [ ] Add logic to check if verifier is the correct Treasurer for the payment's group/purpose.
+    - [ ] Ensure backend logic updates the corresponding `user_dues` record upon verification.
+- [ ] **Frontend:** Ensure verification UI works correctly for Treasurer verifying Due payments.
+
+### D. Reporting & Export
+- [ ] **Backend:** API endpoint `GET /api/export/dues-status?dueId=...` to export CSV of student payment status for a specific Due.
+- [ ] **Backend:** API endpoint `GET /api/export/payments?type=due&groupId=...&dateRange=...` to export CSV of verified payment transactions related to Dues.
+- [ ] **Frontend:** Add "Export CSV" buttons in relevant Treasurer UI sections (Dues status view, Payments list).

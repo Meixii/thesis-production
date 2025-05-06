@@ -30,7 +30,7 @@ const SimplePieChart: React.FC<SimplePieChartProps> = ({
 
   // Calculate CSS conic gradient
   let cumulativePercentage = 0;
-  const gradientStops = data.map((item, index) => {
+  const gradientStops = data.map((item) => {
     const startPercentage = cumulativePercentage;
     const itemPercentage = (item.value / total) * 100;
     cumulativePercentage += itemPercentage;

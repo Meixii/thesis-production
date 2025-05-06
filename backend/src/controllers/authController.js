@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const { sendVerificationEmail } = require('../utils/email');
 const nodemailer = require('nodemailer');
+const { uploadToCloudinary } = require('../utils/cloudinary');
+const multer = require('multer');
 
 const login = async (req, res) => {
   try {
@@ -478,6 +480,88 @@ const sendEmail = async (mailOptions) => {
   return transporter.sendMail(mailOptions);
 };
 
+// Multer config for profile picture uploads
+const profilePicUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
+/**
+ * Upload and update profile picture
+ */
+const uploadProfilePicture = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    // Get user's last name for filename
+    const userResult = await db.query('SELECT last_name FROM users WHERE id = $1', [userId]);
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const lastName = userResult.rows[0].last_name || 'Unknown';
+    // Upload to Cloudinary with profile picture filename and flag
+    const uploadResult = await uploadToCloudinary(file, { profilePic: true, lastName });
+    const url = uploadResult.secure_url;
+    // Update user profile_picture_url
+    await db.query('UPDATE users SET profile_picture_url = $1 WHERE id = $2', [url, userId]);
+    res.json({ profilePictureUrl: url });
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    res.status(500).json({ error: 'Failed to upload profile picture' });
+  }
+};
+
+/**
+ * Update user's password
+ * Requires authentication
+ */
+const updatePassword = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    // Get user's current password hash
+    const result = await db.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [newPasswordHash, userId]
+    );
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -486,5 +570,8 @@ module.exports = {
   resendVerificationEmail,
   forgotPassword,
   verifyResetToken,
-  resetPassword
+  resetPassword,
+  updatePassword,
+  uploadProfilePicture,
+  profilePicUpload,
 };

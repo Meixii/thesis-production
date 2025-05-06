@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 /**
  * Join a thesis group using a group code
@@ -64,6 +65,27 @@ const joinGroup = async (req, res) => {
         [groupId, userId]
       );
 
+      // Check if the group is a section group
+      const groupTypeResult = await client.query(
+        'SELECT group_type FROM groups WHERE id = $1',
+        [groupId]
+      );
+      const groupType = groupTypeResult.rows[0]?.group_type;
+      if (groupType === 'section') {
+        // Get all dues for this group
+        const duesResult = await client.query(
+          'SELECT id FROM dues WHERE group_id = $1',
+          [groupId]
+        );
+        for (const due of duesResult.rows) {
+          // Insert user_dues if not already present
+          await client.query(
+            'INSERT INTO user_dues (due_id, user_id, status) SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM user_dues WHERE due_id = $1 AND user_id = $2)',
+            [due.id, userId, 'pending']
+          );
+        }
+      }
+
       await client.query('COMMIT');
 
       res.json({
@@ -125,7 +147,7 @@ const getDashboardData = async (req, res) => {
     let group = null;
     if (user.groupId) {
       const groupResult = await db.query(`
-        SELECT id, group_name
+        SELECT id, group_name, group_type
         FROM groups
         WHERE id = $1
       `, [user.groupId]);
@@ -133,7 +155,8 @@ const getDashboardData = async (req, res) => {
       if (groupResult.rows.length > 0) {
         group = {
           id: groupResult.rows[0].id,
-          name: groupResult.rows[0].group_name
+          name: groupResult.rows[0].group_name,
+          groupType: groupResult.rows[0].group_type
         };
       }
     }
@@ -232,7 +255,179 @@ const getDashboardData = async (req, res) => {
   }
 };
 
+// List all dues assigned to the authenticated student
+const getMyDues = async (req, res) => {
+  const userId = req.user.userId;
+  try {
+    const result = await db.query(`
+      SELECT 
+        ud.id as user_due_id,
+        d.id as due_id,
+        d.title,
+        d.description,
+        d.total_amount_due,
+        d.due_date,
+        ud.status,
+        ud.amount_paid,
+        (d.total_amount_due - ud.amount_paid) as remaining,
+        d.created_at
+      FROM user_dues ud
+      JOIN dues d ON ud.due_id = d.id
+      WHERE ud.user_id = $1
+      ORDER BY d.due_date DESC
+    `, [userId]);
+    res.json({
+      success: true,
+      data: result.rows.map(row => ({
+        userDueId: row.user_due_id,
+        dueId: row.due_id,
+        title: row.title,
+        description: row.description,
+        totalAmountDue: Number(row.total_amount_due),
+        dueDate: row.due_date,
+        status: row.status,
+        amountPaid: Number(row.amount_paid),
+        remaining: Number(row.remaining),
+        createdAt: row.created_at
+      }))
+    });
+  } catch (err) {
+    console.error('getMyDues error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// Get details and payment history for a specific due assigned to the student
+const getMyDueDetails = async (req, res) => {
+  const userId = req.user.userId;
+  const dueId = req.params.dueId;
+  try {
+    // Get user_due record
+    const userDueResult = await db.query(`
+      SELECT ud.id as user_due_id, ud.status, ud.amount_paid, ud.last_payment_date, d.title, d.description, d.total_amount_due, d.due_date, d.created_at
+      FROM user_dues ud
+      JOIN dues d ON ud.due_id = d.id
+      WHERE ud.user_id = $1 AND d.id = $2
+      LIMIT 1
+    `, [userId, dueId]);
+    if (userDueResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Due not found for this user' });
+    }
+    const due = userDueResult.rows[0];
+    // Get payment history for this user_due
+    const paymentsResult = await db.query(`
+      SELECT p.id, p.amount, p.method, p.status, p.reference_id, p.receipt_url, p.created_at, p.verified_at, pad.amount_allocated
+      FROM payments p
+      JOIN payment_allocations_dues pad ON pad.payment_id = p.id
+      WHERE pad.user_due_id = $1 AND p.user_id = $2
+      ORDER BY p.created_at DESC
+    `, [due.user_due_id, userId]);
+    res.json({
+      success: true,
+      data: {
+        dueId: Number(dueId),
+        userDueId: due.user_due_id,
+        title: due.title,
+        description: due.description,
+        totalAmountDue: Number(due.total_amount_due),
+        dueDate: due.due_date,
+        status: due.status,
+        amountPaid: Number(due.amount_paid),
+        remaining: Number(due.total_amount_due) - Number(due.amount_paid),
+        lastPaymentDate: due.last_payment_date,
+        createdAt: due.created_at,
+        payments: paymentsResult.rows.map(p => ({
+          paymentId: p.id,
+          amount: Number(p.amount),
+          amountAllocated: Number(p.amount_allocated),
+          method: p.method,
+          status: p.status,
+          referenceId: p.reference_id,
+          receiptUrl: p.receipt_url,
+          createdAt: p.created_at,
+          verifiedAt: p.verified_at
+        }))
+      }
+    });
+  } catch (err) {
+    console.error('getMyDueDetails error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+// Submit a payment for a due
+const payDue = async (req, res) => {
+  const userId = req.user.userId;
+  const dueId = req.params.dueId;
+  const { amount, method, referenceId, notes } = req.body;
+  const receiptFile = req.file;
+  if (!amount || !method) {
+    return res.status(400).json({ success: false, error: 'Amount and method are required' });
+  }
+  try {
+    // Get user_due record
+    const userDueResult = await db.query(`
+      SELECT id, amount_paid, status FROM user_dues WHERE user_id = $1 AND due_id = $2 LIMIT 1
+    `, [userId, dueId]);
+    if (userDueResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Due not found for this user' });
+    }
+    const userDue = userDueResult.rows[0];
+    // Get user's group and last name for Cloudinary metadata
+    const userResult = await db.query('SELECT group_id, last_name FROM users WHERE id = $1', [userId]);
+    if (!userResult.rows.length) {
+      throw new Error('User not found');
+    }
+    const groupId = userResult.rows[0].group_id;
+    const lastName = userResult.rows[0].last_name || 'Unknown';
+    // Upload receipt if provided
+    let receiptUrl = null;
+    if (receiptFile) {
+      try {
+        const uploadResult = await uploadToCloudinary(receiptFile, {
+          lastName,
+          paymentMethod: method,
+          userId
+        });
+        receiptUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        console.error('Receipt upload failed:', uploadError);
+        if (process.env.NODE_ENV === 'production') {
+          // Log the error but continue
+          console.warn('Continuing payment processing without receipt image');
+        } else {
+          throw new Error('Receipt upload failed: ' + uploadError.message);
+        }
+      }
+    }
+    // Insert payment
+    const paymentResult = await db.query(`
+      INSERT INTO payments (user_id, group_id, amount, method, status, purpose, reference_id, receipt_url, notes)
+      VALUES ($1, $2, $3, $4, 'pending_verification', $5, $6, $7, $8)
+      RETURNING id, created_at
+    `, [userId, groupId, amount, method, `Due Payment: ${dueId}`, referenceId || null, receiptUrl || null, notes || null]);
+    const paymentId = paymentResult.rows[0].id;
+    // Link payment to user_due
+    await db.query(`
+      INSERT INTO payment_allocations_dues (payment_id, user_due_id, amount_allocated)
+      VALUES ($1, $2, $3)
+    `, [paymentId, userDue.id, amount]);
+    res.json({
+      success: true,
+      message: 'Payment submitted and pending verification',
+      paymentId,
+      createdAt: paymentResult.rows[0].created_at
+    });
+  } catch (err) {
+    console.error('payDue error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   joinGroup,
-  getDashboardData
+  getDashboardData,
+  getMyDues,
+  getMyDueDetails,
+  payDue
 }; 

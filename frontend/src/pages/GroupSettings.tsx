@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/ui/Navigation';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -31,7 +30,6 @@ const GroupSettingsPage = () => {
     intra_loan_flat_fee: ''
   });
   const { showToast } = useToast();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSettings = async () => {

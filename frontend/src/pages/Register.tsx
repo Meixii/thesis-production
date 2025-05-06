@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -31,6 +31,7 @@ const Register = () => {
     hasSpecialChar: false
   });
   const [emailError, setEmailError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
     middleName: '',
@@ -40,6 +41,12 @@ const Register = () => {
     password: '',
     confirmPassword: ''
   });
+  const [searchParams] = useSearchParams();
+  const ssoProvider = searchParams.get('provider');
+  const ssoId = searchParams.get('id');
+  const ssoEmail = searchParams.get('email');
+  const ssoFirstName = searchParams.get('firstName');
+  const ssoLastName = searchParams.get('lastName');
 
   useEffect(() => {
     if (formData.password) {
@@ -54,6 +61,17 @@ const Register = () => {
     }
   }, [formData.email]);
 
+  useEffect(() => {
+    if (ssoProvider) {
+      setFormData((prev) => ({
+        ...prev,
+        email: ssoEmail || '',
+        firstName: ssoFirstName || '',
+        lastName: ssoLastName || '',
+      }));
+    }
+  }, [ssoProvider, ssoEmail, ssoFirstName, ssoLastName]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -64,53 +82,24 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    // Validate email
-    const emailValidation = validateEmail(formData.email);
-    if (!emailValidation.isValid) {
-      setError(emailValidation.message || 'Invalid email');
-      return;
-    }
-
-    // Validate password
-    if (!passwordValidation.isValid) {
-      setError('Please ensure your password meets all requirements');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     setIsLoading(true);
-
     try {
+      const payload = {
+        ...formData,
+        ssoProvider: ssoProvider || undefined,
+        ssoId: ssoId || undefined,
+      };
       const response = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          middleName: formData.middleName,
-          lastName: formData.lastName,
-          suffix: formData.suffix,
-          email: formData.email,
-          password: formData.password
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to register');
-      }
-
-      // Registration successful, redirect to verification page
+      if (!response.ok) throw new Error(data.error || 'Registration failed');
+      // On success, always redirect to verify email page, passing the email
       navigate('/verify-email', { state: { email: formData.email } });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to register');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +118,7 @@ const Register = () => {
 
       <div className="mt-8 mx-auto w-full max-w-sm">
         <Card variant="default" className="py-8 px-3 sm:px-6 shadow-medium sm:rounded-xl bg-white dark:bg-neutral-800">
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <SocialButton
               provider="google"
               onClick={() => window.location.href = getApiUrl('/api/auth/google')}
@@ -144,7 +133,7 @@ const Register = () => {
             </SocialButton>
           </div>
 
-          <Divider className="my-6">Or register with email</Divider>
+          <Divider className="my-6">Or register with email</Divider> */}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
@@ -163,6 +152,7 @@ const Register = () => {
                 required
                 value={formData.firstName}
                 onChange={handleChange}
+                disabled={!!ssoProvider}
               />
 
               <Input
@@ -174,6 +164,7 @@ const Register = () => {
                 required
                 value={formData.lastName}
                 onChange={handleChange}
+                disabled={!!ssoProvider}
               />
             </div>
 
@@ -208,7 +199,8 @@ const Register = () => {
               required
               value={formData.email}
               onChange={handleChange}
-              error={emailError ? { field: 'email', message: emailError } : undefined}
+              error={emailError || undefined}
+              disabled={!!ssoProvider}
             />
 
             <div className="space-y-4">
@@ -289,7 +281,7 @@ const Register = () => {
               required
               value={formData.confirmPassword}
               onChange={handleChange}
-              error={formData.confirmPassword && formData.password !== formData.confirmPassword ? { field: 'confirmPassword', message: 'Passwords do not match' } : undefined}
+              error={formData.confirmPassword && formData.password !== formData.confirmPassword ? 'Passwords do not match' : undefined}
             />
 
             <Button

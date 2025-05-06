@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const { login, register, verifyEmail, getProfile, resendVerificationEmail } = require('../controllers/authController');
 const { authenticateToken } = require('../middleware/auth');
 const authController = require('../controllers/authController'); // Added for password reset routes
+const { profilePicUpload } = require('../controllers/authController');
 
 // Regular auth routes
 router.post('/login', login);
@@ -13,7 +14,8 @@ router.get('/verify-email/:token', verifyEmail);
 router.get('/profile', authenticateToken, getProfile);
 router.post('/verify-email/resend', authenticateToken, resendVerificationEmail);
 
-// Routes for password reset
+// Password management routes
+router.post('/update-password', authenticateToken, authController.updatePassword);
 router.post('/forgot-password', authController.forgotPassword);
 router.get('/reset-password/verify/:token', authController.verifyResetToken);
 router.post('/reset-password', authController.resetPassword);
@@ -115,5 +117,8 @@ router.get('/google/callback',
     }
   }
 );
+
+// Profile picture upload route
+router.post('/upload-profile-picture', authenticateToken, profilePicUpload.single('profilePic'), authController.uploadProfilePicture);
 
 module.exports = router;

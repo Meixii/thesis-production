@@ -14,6 +14,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const loanRoutes = require('./routes/loanRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const treasurerRoutes = require('./routes/treasurerRoutes');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/treasurer', treasurerRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

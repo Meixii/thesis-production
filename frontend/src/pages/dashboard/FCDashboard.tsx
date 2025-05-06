@@ -7,7 +7,7 @@ import Button from '../../components/ui/Button';
 import Navigation from '../../components/ui/Navigation';
 import SimpleBarChart from '../../components/ui/SimpleBarChart';
 import SimplePieChart from '../../components/ui/SimplePieChart';
-import { useToast } from '../../context/ToastContext';
+// import { useToast } from '../../context/ToastContext';
 
 // Types
 interface GroupData {
@@ -41,7 +41,7 @@ interface ExpenseChartData {
 
 const FCDashboard = () => {
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  // const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dashboardData, setDashboardData] = useState<FCDashboardData | null>(null);

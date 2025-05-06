@@ -85,7 +85,7 @@ const MemberDetail: React.FC = () => {
         setMemberData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        showToast('error', err instanceof Error ? err.message : 'Failed to load member details');
+        showToast(err instanceof Error ? err.message : 'Failed to load member details', 'error');
       } finally {
         setLoading(false);
       }

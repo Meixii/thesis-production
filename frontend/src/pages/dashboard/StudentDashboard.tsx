@@ -216,7 +216,7 @@ const StudentDashboard = () => {
     return (
       <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
         {/* Navigation */}
-        <Navigation onLogout={handleLogout} />
+        <Navigation userRole="student" onLogout={handleLogout} />
 
         <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md mx-auto bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden p-8 text-center">
@@ -264,7 +264,7 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-neutral-900">
       {/* Navigation */}
-      <Navigation onLogout={handleLogout} />
+      <Navigation userRole={(dashboardData?.user.role ?? 'student') as 'student' | 'finance_coordinator' | 'treasurer' | 'admin'} onLogout={handleLogout} groupType="thesis" />
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {dashboardData && (
@@ -305,7 +305,6 @@ const StudentDashboard = () => {
                         onClick={() => setJoinGroupModalOpen(true)} 
                         variant="primary"
                         className="mt-2 sm:mt-0 sm:ml-4 text-sm"
-                        size="sm"
                       >
                         Join a Group
                       </Button>

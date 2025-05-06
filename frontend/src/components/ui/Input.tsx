@@ -2,8 +2,8 @@ import React, { forwardRef, useState } from 'react';
 import { ValidationError } from '../../utils/validation';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  error?: ValidationError | null;
+  label?: string;
+  error?: string;
   helperText?: string;
   containerClassName?: string;
   labelClassName?: string;
@@ -21,18 +21,24 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
     return (
       <div className={containerClassName}>
-        <label htmlFor={props.id} className={`block text-sm font-medium ${error ? 'text-error-dark dark:text-error-light' : 'text-neutral-700 dark:text-neutral-200'} ${labelClassName}`}>
-          {label}
-          {props.required && <span className="text-error-dark dark:text-error-light ml-1">*</span>}
-        </label>
+        {label && (
+          <label
+            htmlFor={props.id}
+            className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ${labelClassName}`}
+          >
+            {label}
+          </label>
+        )}
         <div className="relative">
           <input
             ref={ref}
             type={inputType}
-            className={`${baseInputClasses} ${error ? errorClasses : validClasses} ${className} ${isPassword ? 'pr-10' : ''}`}
-            aria-invalid={error ? 'true' : 'false'}
-            aria-describedby={error ? `${props.id}-error` : undefined}
-            autoComplete={isPassword ? 'new-password' : props.autoComplete}
+            className={`
+              block w-full rounded-md border-gray-300 dark:border-neutral-600
+              focus:border-primary-500 focus:ring-primary-500
+              dark:bg-neutral-700 dark:text-white dark:placeholder-gray-400
+              sm:text-sm ${error ? 'border-red-300 dark:border-red-500' : ''} ${className}
+            `}
             {...props}
           />
           {isPassword && (
@@ -54,14 +60,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             </button>
           )}
         </div>
-        {error && (
-          <p className="mt-1 text-sm text-error-dark dark:text-error-light" id={`${props.id}-error`} role="alert">
-            {error.message}
-          </p>
-        )}
-        {!error && helperText && (
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400" id={`${props.id}-description`}>
-            {helperText}
+        {(error || helperText) && (
+          <p className={`mt-2 text-sm ${error ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            {error || helperText}
           </p>
         )}
       </div>

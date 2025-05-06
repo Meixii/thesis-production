@@ -8,10 +8,57 @@ import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
+type UserRole = 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
+
+const getRoleFromResponse = (data: any): UserRole => {
+  // Extract role from various possible response structures
+  let role = '';
+  if (data.user?.role) {
+    role = data.user.role;
+  } else if (data.data?.user?.role) {
+    role = data.data.user.role;
+  } else if (data.data?.role) {
+    role = data.data.role;
+  } else if (data.role) {
+    role = data.role;
+  }
+
+  // Normalize role string
+  role = role.toLowerCase();
+  
+  // Map role variations to standard roles
+  switch (role) {
+    case 'admin':
+      return 'admin';
+    case 'finance_coordinator':
+    case 'fc':
+    case 'finance coordinator':
+      return 'finance_coordinator';
+    case 'treasurer':
+      return 'treasurer';
+    default:
+      return 'student';
+  }
+};
+
+const getRedirectPath = (role: UserRole): string => {
+  switch (role) {
+    case 'admin':
+      return '/admin';
+    case 'finance_coordinator':
+      return '/dashboard/fc';
+    case 'treasurer':
+      return '/treasurer';
+    default:
+      return '/dashboard/student';
+  }
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchingGroupType, setFetchingGroupType] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
@@ -53,34 +100,46 @@ const Login = () => {
         throw new Error(data.error || 'Failed to login');
       }
 
+      // Store the token
       localStorage.setItem('token', data.token);
       
-      // Determine the user role from the response data (handle different API structures)
-      let userRole = 'student'; // Default role
-      
-      // Log response for debugging
-      console.log('Login response:', data);
-      
-      // Try different possible API response structures
-      if (data.user?.role) {
-        userRole = data.user.role.toLowerCase();
-      } else if (data.data?.user?.role) {
-        userRole = data.data.user.role.toLowerCase();
-      } else if (data.data?.role) {
-        userRole = data.data.role.toLowerCase();
-      } else if (data.role) {
-        userRole = data.role.toLowerCase();
-      }
-      
-      // Handle various formats of role string
+      // Get standardized role and redirect path
+      const userRole = getRoleFromResponse(data);
       if (userRole === 'admin') {
         showToast('Logged in as Admin', 'success');
         navigate('/admin');
-      } else if (userRole === 'finance_coordinator' || userRole === 'fc' || userRole === 'finance coordinator') {
+        return;
+      }
+      if (userRole === 'finance_coordinator') {
         showToast('Logged in as Finance Coordinator', 'success');
         navigate('/dashboard/fc');
+        return;
+      }
+      if (userRole === 'treasurer') {
+        showToast('Logged in as Treasurer', 'success');
+        navigate('/treasurer');
+        return;
+      }
+      // For students, fetch groupType and redirect accordingly
+      setFetchingGroupType(true);
+      const dashRes = await fetch(getApiUrl('/api/student/dashboard'), {
+        headers: {
+          'Authorization': `Bearer ${data.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const dashData = await dashRes.json();
+      if (!dashRes.ok || !dashData.success || !dashData.data.group) {
+        // No group yet, go to /dashboard (will show join group modal)
+        navigate('/dashboard');
+        return;
+      }
+      const groupType = dashData.data.group?.groupType;
+      if (groupType === 'section') {
+        showToast('Logged in as Section Student', 'success');
+        navigate('/dashboard/section');
       } else {
-        showToast('Logged in successfully!', 'success');
+        showToast('Logged in as Thesis Student', 'success');
         navigate('/dashboard/student');
       }
     } catch (err) {
@@ -92,11 +151,18 @@ const Login = () => {
       }
     } finally {
       setIsLoading(false);
+      setFetchingGroupType(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex flex-col justify-center py-8 px-2 sm:px-6 lg:px-8">
+      {/* Show spinner if fetching group type after login */}
+      {fetchingGroupType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary bg-white dark:bg-neutral-900"></div>
+        </div>
+      )}
       <div className="mx-auto w-full max-w-sm">
         <h1 className="text-center text-3xl font-bold tracking-tight text-neutral-900 dark:text-white font-display">
           Welcome back!
@@ -166,9 +232,9 @@ const Login = () => {
             </Button>
           </form>
 
-          <Divider className="my-6">Or continue with</Divider>
+          {/* <Divider className="my-6">Or continue with</Divider> */}
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <SocialButton
               provider="google"
               onClick={() => window.location.href = getApiUrl('/api/auth/google')}
@@ -181,7 +247,7 @@ const Login = () => {
             >
               Facebook
             </SocialButton>
-          </div>
+          </div> */}
 
           <p className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-300">
             Don't have an account?{' '}

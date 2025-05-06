@@ -3,6 +3,79 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #32
+- Enhanced Section Student Dashboard search functionality:
+  - Added comprehensive search across all due fields (title, description, status, amount, date)
+  - Improved search UI with clear button and results count
+  - Added proper case-insensitive search with better formatting
+  - Enhanced accessibility with proper ARIA labels and visual feedback
+  - Added hover states and smooth transitions for better UX
+  - Improved dark mode support for search elements
+
+Update #31
+- Enhanced Section Student Dashboard and Profile Page UI/UX:
+  - Dashboard Improvements:
+    - Added dark transparent gradient overlay to profile pictures for better text visibility
+    - Matched Profile Card width with Assigned Dues card (max-w-7xl)
+    - Added 'Summary' label to Profile Card and optimized information display
+    - Implemented functional search for dues with search icon and filtering
+    - Enhanced card alignments and spacing for better visual hierarchy
+    - Added comprehensive search functionality filtering dues by title and status
+  - Profile Page Enhancements:
+    - Implemented secure password update functionality with proper backend endpoint (/api/auth/update-password)
+    - Added robust password verification and update system
+    - Streamlined interface by removing redundant Current Group section
+    - Enhanced form validation and error handling for password changes
+    - Added toast notifications for better user feedback
+    - Improved button states and interaction feedback
+  - Backend Security Updates:
+    - Implemented secure updatePassword controller with proper verification
+    - Added authentication middleware to password update route
+    - Enhanced password security with proper hashing and comparison
+    - Implemented comprehensive error handling for password operations
+
+Update #30
+- Section student due payments now support receipt image uploads:
+  - Added multer middleware to /api/student/dues/:dueId/pay for file upload (5MB, images only)
+  - Updated payDue controller to upload receipt to Cloudinary and store URL in payments table
+  - Students can now submit payment receipts for dues, just like thesis payments
+  - Robust error handling for upload failures (mirrors thesis payment logic)
+
+Update #29
+- Added comprehensive Treasurer API endpoints:
+  - Implemented /api/treasurer/dashboard for treasurer overview
+  - Added /api/treasurer/dues endpoints for dues management
+  - Added due status and export functionality
+  - Implemented proper role-based access control
+  - Added transaction support for due creation
+  - Enhanced data aggregation for dashboard statistics
+  - Added CSV export capability for due status
+  - Improved error handling and validation
+
+Update #28
+- Added comprehensive Treasurer role features:
+  - Backend Enhancements:
+    - Implemented treasurerRoutes.js with role-protected API endpoints
+    - Created treasurerController.js with extensive management functions
+    - Added role-based access control for treasurer operations
+    - Implemented SQL queries for financial data retrieval
+    - Added CSV export functionality for various reports
+    - Added payment verification and rejection handling
+    - Added transaction support for critical operations
+  - Data Management Features:
+    - Collection trend tracking (6-month history)
+    - Payment method distribution analytics
+    - Due status monitoring system
+    - Payment verification workflow
+    - Export functionality for financial reports
+    - Student payment tracking system
+    - Comprehensive financial statistics
+  - Enhanced Security:
+    - Role-based endpoint protection
+    - Transaction integrity for critical operations
+    - Secure payment verification flow
+    - Protected export functionality
+
 Update #27
 - Added admin group management endpoints:
   - Implemented PUT /api/admin/groups/:id for updating all group fields (including group_type)
@@ -254,6 +327,83 @@ Update #1
 
 ## Frontend
 <!-- (Always make the recent update after this) -->
+
+
+Update #68
+- Added payment system implementation
+- Created frontend payment form with QR code support
+- Integrated Cloudinary for receipt uploads
+- Added payment verification system for Finance Coordinators
+- Fixed auth middleware and role-based access control
+- Updated QR code images to use JPG format
+
+Update #67
+- Enhanced Navigation and Profile Components:
+  - Added proper profile links for all user roles (Student, FC, Treasurer, Admin)
+  - Fixed dashboard active state handling in navigation
+  - Improved role-based routing with protected routes
+  - Updated Profile component to handle all user roles correctly
+  - Enhanced TypeScript types and fixed type errors
+  - Added consistent profile paths across the application
+  - Improved mobile menu handling and accessibility
+- Treasurers can now delete dues:
+  - Added DELETE /api/treasurer/dues/:dueId endpoint
+  - Deletes the due, all related user_dues, and payment_allocations_dues in a transaction
+  - Only the treasurer of the group can delete dues for their group
+
+Update #66
+- Enhanced Profile Component with Password Management:
+  - Added password change functionality with strong validation
+  - Implemented real-time password strength indicators
+  - Added visual feedback for password requirements
+  - Enhanced UI with modern design and better organization
+  - Fixed profile routing for all user roles
+  - Improved Input component to handle string error messages
+  - Added proper error handling and success notifications
+- Added password update functionality:
+  - Added POST /api/auth/update-password endpoint for authenticated users
+  - Implemented secure password verification and update in backend
+  - Added proper error handling for incorrect current password
+  - Improved frontend validation and error feedback
+  - Added success/error toast notifications
+
+Update #65
+- Section Student Dashboard profile card redesigned for a more compact, visually appealing look with reduced whitespace.
+- Due Details modal readability improved: larger and bolder text, better color contrast, and more padding for accessibility.
+- Added DuePaymentModal: students can now pay dues directly from the Due Details modal, supporting GCash, Maya, and Cash payment flows with QR, ref ID, and receipt upload.
+
+Update #64
+- Profile page now supports section users:
+  - Shows 'Section Group' label and yellow styling for section group members
+  - Section users see dues-related info and a 'View My Dues' button
+  - Thesis-specific info/actions are hidden for section users
+
+Update #63
+- Added Section Student Dashboard:
+  - New page for students in section groups, showing profile and group info (dues list placeholder for now)
+  - Modern UI matching thesis dashboard
+- Updated dashboard routing logic:
+  - Students are now redirected to /dashboard/section or /dashboard/student based on group type after login or group join
+  - Added DashboardRouter for group type-based dashboard routing
+
+Update #62
+- Admins can now export the entire database as a SQL dump (schema + data) or as CSVs for each table (zipped).
+- Endpoint: GET /api/admin/export-db?type=sql|csv (admin only).
+- Useful for backup, migration, or data analysis.
+- Admin dashboard now includes an Export Database section.
+- Admins can export the database as SQL (schema + data) or CSV (ZIP) with user feedback and loading states.
+
+Update #61
+- After traditional registration, users are now redirected to the email verification page instead of Join Group.
+- After SSO registration, users are redirected directly to Join Group (since SSO users are already verified).
+- Fixed registration logic and error handling for both flows.
+- Improved onboarding sequence for new users.
+
+Update #60
+- Users can now upload a profile picture from the Profile page.
+- Profile pictures are stored in Cloudinary with the format profile_lastname_MMDDYYYY_HHMMSS.
+- Backend and Cloudinary utility updated to support both payment and profile uploads without breaking existing logic.
+- Profile page now allows users to upload and update their profile picture with preview, progress, and error handling.
 
 Update #59
 - Full admin group management now supports group_type (thesis/section)

@@ -1,4 +1,10 @@
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
+const { spawn } = require('child_process');
+const archiver = require('archiver');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 /**
  * Get all thesis weeks
@@ -130,7 +136,9 @@ const getUsers = async (req, res) => {
       `SELECT 
          u.id, 
          u.first_name, 
+         u.middle_name,
          u.last_name, 
+         u.suffix,
          u.email, 
          u.role, 
          u.is_active,
@@ -151,7 +159,11 @@ const getUsers = async (req, res) => {
         group: {
           id: user.group_id,
           name: user.group_name
-        }
+        },
+        first_name: user.first_name,
+        last_name: user.last_name,
+        middle_name: user.middle_name,
+        suffix: user.suffix
       }))
     });
   } catch (error) {
@@ -469,6 +481,162 @@ const deleteGroup = async (req, res) => {
   }
 };
 
+/**
+ * Create a new user (admin only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const createUser = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    }
+    const {
+      first_name,
+      middle_name,
+      last_name,
+      suffix,
+      email,
+      password,
+      role,
+      group_id
+    } = req.body;
+
+    // Validate required fields
+    if (!first_name || !last_name || !email || !password || !role) {
+      return res.status(400).json({ error: 'First name, last name, email, password, and role are required.' });
+    }
+
+    // Check for duplicate email
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already registered.' });
+    }
+
+    // Hash password
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // Insert user
+    const result = await db.query(
+      `INSERT INTO users (
+        first_name, middle_name, last_name, suffix, email, password_hash, role, group_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, first_name, middle_name, last_name, suffix, email, role, group_id, is_active, created_at`,
+      [
+        first_name,
+        middle_name || null,
+        last_name,
+        suffix || null,
+        email,
+        password_hash,
+        role,
+        group_id || null
+      ]
+    );
+
+    const user = result.rows[0];
+    res.status(201).json({
+      message: 'User created successfully',
+      user
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ error: 'Server error while creating user' });
+  }
+};
+
+/**
+ * Delete a user
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const deleteUser = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    }
+    const { userId } = req.params;
+    const result = await db.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully', id: result.rows[0].id });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Server error while deleting user' });
+  }
+};
+
+/**
+ * Export the whole database as SQL or CSVs (admin only)
+ * GET /api/admin/export-db?type=sql|csv
+ */
+const exportDatabase = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    }
+    const type = req.query.type || 'sql';
+    if (type === 'sql') {
+      // Use pg_dump to export the database
+      const dbUrl = process.env.DATABASE_URL || process.env.PG_CONNECTION_STRING;
+      if (!dbUrl) return res.status(500).json({ error: 'Database URL not configured' });
+      res.setHeader('Content-Disposition', 'attachment; filename="thesis_db_export.sql"');
+      res.setHeader('Content-Type', 'application/sql');
+      console.log('Node PATH:', process.env.PATH);
+      const dump = spawn('pg_dump', [dbUrl]);
+      let errorOutput = '';
+      dump.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        console.error('pg_dump error:', data.toString());
+      });
+      dump.stdout.pipe(res);
+      dump.on('error', (err) => {
+        res.status(500).end('pg_dump failed: ' + err.message);
+      });
+      dump.on('close', (code) => {
+        if (code !== 0) {
+          console.error('pg_dump exited with code', code, 'Error output:', errorOutput);
+          if (!res.headersSent) {
+            res.status(500).end('pg_dump exited with code ' + code + '\n' + errorOutput);
+          }
+        }
+      });
+      return;
+    } else if (type === 'csv') {
+      // Export all tables as CSVs and zip them
+      const tablesResult = await db.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`);
+      const tables = tablesResult.rows.map(r => r.table_name);
+      res.setHeader('Content-Disposition', 'attachment; filename="thesis_db_csv_export.zip"');
+      res.setHeader('Content-Type', 'application/zip');
+      const archive = archiver('zip');
+      archive.pipe(res);
+      for (const table of tables) {
+        const result = await db.query(`SELECT * FROM ${table}`);
+        const csvRows = [];
+        if (result.rows.length > 0) {
+          csvRows.push(Object.keys(result.rows[0]).join(','));
+          for (const row of result.rows) {
+            csvRows.push(Object.values(row).map(v => v === null ? '' : '"' + String(v).replace(/"/g, '""') + '"').join(','));
+          }
+        } else {
+          // Add header only if table is empty
+          const columnsRes = await db.query(`SELECT column_name FROM information_schema.columns WHERE table_name = $1`, [table]);
+          csvRows.push(columnsRes.rows.map(c => c.column_name).join(','));
+        }
+        archive.append(csvRows.join(os.EOL), { name: `${table}.csv` });
+      }
+      await archive.finalize();
+      return;
+    } else {
+      return res.status(400).json({ error: 'Invalid export type. Use type=sql or type=csv.' });
+    }
+  } catch (error) {
+    console.error('Export database error:', error);
+    res.status(500).json({ error: 'Server error during database export' });
+  }
+};
+
 module.exports = {
   getThesisWeeks,
   upsertThesisWeek,
@@ -478,5 +646,8 @@ module.exports = {
   getGroups,
   createGroup,
   updateGroup,
-  deleteGroup
+  deleteGroup,
+  createUser,
+  deleteUser,
+  exportDatabase,
 }; 

@@ -72,7 +72,7 @@ const Members: React.FC = () => {
         setFilteredMembers(membersData.members);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        showToast('error', err instanceof Error ? err.message : 'Failed to load members');
+        showToast(err instanceof Error ? err.message : 'Failed to load members', 'error');
       } finally {
         setLoading(false);
       }

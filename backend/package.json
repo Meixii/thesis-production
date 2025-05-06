@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "zengarden-thesis-backend",
   "version": "1.0.0",
   "main": "src/app.js",
   "scripts": {
@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.9",
     "cloudinary": "^2.6.0",
