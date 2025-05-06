@@ -20,7 +20,17 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: function(origin, callback) {
+    // Split the FRONTEND_URL into an array if it contains multiple URLs
+    const allowedOrigins = process.env.FRONTEND_URL.split(',');
+    
+    // Check if the origin is in our allowedOrigins array
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
