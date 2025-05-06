@@ -3,6 +3,7 @@ import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
 import { getApiUrl } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 
 interface DuePaymentModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
   remainingAmount,
   onSuccess
 }) => {
+  const { showToast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [referenceId, setReferenceId] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -33,6 +35,8 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [cashConfirmed, setCashConfirmed] = useState(false);
+  const [paymentType, setPaymentType] = useState<'full' | 'partial'>('full');
+  const [partialAmount, setPartialAmount] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileError('');
@@ -40,6 +44,11 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
       const selectedFile = e.target.files[0];
       if (selectedFile.size > MAX_FILE_SIZE) {
         setFileError('File too large (max 5MB)');
+        setFile(null);
+        return;
+      }
+      if (!selectedFile.type.startsWith('image/')) {
+        showToast('Only image files are allowed', 'error');
         setFile(null);
         return;
       }
@@ -70,7 +79,15 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
       if (!token) throw new Error('Not authenticated');
       const formData = new FormData();
       console.log('Submitting payment:', { amount: remainingAmount, method: selectedMethod });
-      formData.append('amount', remainingAmount ? remainingAmount.toString() : '');
+      const amount = paymentType === 'full' ? remainingAmount : parseFloat(partialAmount);
+
+      if (paymentType === 'partial' && (isNaN(amount) || amount <= 0 || amount >= remainingAmount)) {
+        showToast('Please enter a valid partial amount less than the remaining balance', 'error');
+        setLoading(false);
+        return;
+      }
+
+      formData.append('amount', amount.toString());
       formData.append('method', selectedMethod || '');
       if (selectedMethod === 'gcash' || selectedMethod === 'maya') {
         formData.append('referenceId', referenceId);
@@ -94,12 +111,17 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
         }
         return;
       }
-      setSuccess(true);
+      showToast('Payment submitted successfully!', 'success');
       onSuccess();
       setTimeout(() => {
         setSuccess(false);
         onClose();
       }, 1200);
+      setSelectedMethod(null);
+      setReferenceId('');
+      setFile(null);
+      setPaymentType('full');
+      setPartialAmount('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit payment');
     } finally {
@@ -136,6 +158,64 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
               ₱{remainingAmount.toFixed(2)}
             </div>
           </div>
+          {/* Payment Type Selection */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Payment Type
+            </label>
+            <div className="flex gap-4">
+              <label className="relative flex items-center">
+                <input
+                  type="radio"
+                  className="sr-only"
+                  checked={paymentType === 'full'}
+                  onChange={() => setPaymentType('full')}
+                />
+                <div className={`w-4 h-4 border rounded-full mr-2 flex items-center justify-center
+                  ${paymentType === 'full' 
+                    ? 'border-primary-500 bg-primary-500' 
+                    : 'border-gray-300 dark:border-gray-600'}`}
+                >
+                  {paymentType === 'full' && (
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  )}
+                </div>
+                <span className="text-gray-900 dark:text-white">Full Payment</span>
+              </label>
+              <label className="relative flex items-center">
+                <input
+                  type="radio"
+                  className="sr-only"
+                  checked={paymentType === 'partial'}
+                  onChange={() => setPaymentType('partial')}
+                />
+                <div className={`w-4 h-4 border rounded-full mr-2 flex items-center justify-center
+                  ${paymentType === 'partial' 
+                    ? 'border-primary-500 bg-primary-500' 
+                    : 'border-gray-300 dark:border-gray-600'}`}
+                >
+                  {paymentType === 'partial' && (
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  )}
+                </div>
+                <span className="text-gray-900 dark:text-white">Partial Payment</span>
+              </label>
+            </div>
+          </div>
+          {/* Partial Amount Input */}
+          {paymentType === 'partial' && (
+            <Input
+              type="number"
+              label="Payment Amount"
+              value={partialAmount}
+              onChange={(e) => setPartialAmount(e.target.value)}
+              min={1}
+              max={remainingAmount - 0.01}
+              step="0.01"
+              required
+              helperText={`Enter an amount less than ₱${remainingAmount.toFixed(2)}`}
+            />
+          )}
           {/* Payment Method Selection */}
           <div>
             <label className="block text-base font-medium text-gray-800 dark:text-gray-200 mb-2">

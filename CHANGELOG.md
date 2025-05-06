@@ -3,6 +3,16 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #34
+- Added partial payment functionality to Section Student Dashboard:
+  - Added payment type selection (Full/Partial) in payment modal
+  - Implemented partial amount input with validation
+  - Enhanced payment form with better UX and feedback
+  - Added proper validation for partial payment amounts
+  - Improved payment status handling based on payment type
+  - Added visual feedback for payment type selection
+  - Enhanced error handling for invalid partial amounts
+
 Update #33
 - Fixed payment rejection functionality in Section Student Dashboard:
   - Added proper transaction handling for payment rejection
