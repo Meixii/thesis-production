@@ -18,40 +18,62 @@ const treasurerRoutes = require('./routes/treasurerRoutes');
 
 const app = express();
 
-// Middleware
+// Get allowed origins from environment variable
+const allowedOrigins = process.env.FRONTEND_URL.split(',').map(url => url.trim());
+
+// Enhanced CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
-    // Split the FRONTEND_URL into an array if it contains multiple URLs
-    const allowedOrigins = process.env.FRONTEND_URL.split(',');
-    
-    // Check if the origin is in our allowedOrigins array
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin);
+      callback(null, true);
     } else {
+      console.log('Blocked by CORS:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
+
 app.use(express.json());
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Session middleware
+// Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  secret: process.env.SESSION_SECRET || 'thesis-development-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    secure: true, // Required for HTTPS
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'none', // Required for cross-origin requests
+    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined
   }
 }));
 
 // Initialize Passport and restore authentication state from session
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Pre-flight OPTIONS request handler
+app.options('*', cors());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK',
+    environment: process.env.NODE_ENV || 'development',
+    allowedOrigins: allowedOrigins,
+    frontendUrl: process.env.FRONTEND_URL
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -64,12 +86,30 @@ app.use('/api/treasurer', treasurerRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+  
+  // Handle CORS errors specifically
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      error: 'CORS Error',
+      message: 'Origin not allowed',
+      allowedOrigins: allowedOrigins,
+      requestOrigin: req.headers.origin
+    });
+  }
+  
+  res.status(500).json({ 
+    error: 'Something went wrong!',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
 });
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('Allowed origins:', allowedOrigins);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
 }); 

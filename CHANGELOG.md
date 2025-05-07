@@ -3,6 +3,45 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #39
+- Enhanced Email Configuration with Better Error Handling:
+  - Added validation for required email environment variables
+  - Implemented SMTP connection retry mechanism (3 attempts)
+  - Added detailed error logging for SMTP connection issues
+  - Enhanced development mode with debug and logger options
+  - Added validation for FRONTEND_URL in email functions
+  - Improved error messages for missing configuration
+  - Added startup SMTP connection verification
+
+Update #38
+- Enhanced CORS Configuration with Environment Variables:
+  - Now using FRONTEND_URL from environment variables for CORS origins
+  - Added better logging for CORS errors with request origin details
+  - Enhanced health check endpoint with FRONTEND_URL information
+  - Improved error messages for CORS issues with more context
+  - Added request origin to CORS error responses for better debugging
+  - Added startup logging of FRONTEND_URL for verification
+
+Update #37
+- Enhanced CORS Configuration for Production:
+  - Added specific allowed origins (zgkaizen.xyz and thesis-production.vercel.app)
+  - Improved CORS security settings for cross-origin requests
+  - Added proper cookie settings for HTTPS
+  - Enhanced session configuration for production environment
+  - Added better CORS error logging and debugging
+  - Improved health check endpoint with origin information
+
+
+Update #36
+- Enhanced CORS and Session Configuration:
+  - Simplified CORS configuration to fix cross-origin issues
+  - Improved session handling for development environment
+  - Enhanced error logging for better debugging
+  - Fixed authentication issues with session configuration
+  - Removed Redis dependency for simpler deployment
+  - Added better error messages for API failures
+
+
 Update #35
 - Enhanced email system with Hostinger SMTP integration:
   - Switched from Gmail to Hostinger SMTP for improved deliverability
