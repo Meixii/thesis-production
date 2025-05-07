@@ -47,21 +47,13 @@ const VerifyEmailInfo = () => {
     
     setIsLoading(true);
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        showToast('You need to be logged in to resend the verification email.', 'error');
-        navigate('/login');
-        return;
-      }
-      
+      // No token needed anymore, just send the email
       const response = await fetch(getApiUrl('/api/auth/verify-email/resend'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
       });
 
       const data = await response.json();

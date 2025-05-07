@@ -12,7 +12,7 @@ router.post('/login', login);
 router.post('/register', register);
 router.get('/verify-email/:token', verifyEmail);
 router.get('/profile', authenticateToken, getProfile);
-router.post('/verify-email/resend', authenticateToken, resendVerificationEmail);
+router.post('/verify-email/resend', resendVerificationEmail);
 
 // Password management routes
 router.post('/update-password', authenticateToken, authController.updatePassword);

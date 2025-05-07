@@ -227,28 +227,47 @@ const getProfile = async (req, res) => {
 
 const resendVerificationEmail = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    // Get user info
-    const result = await db.query('SELECT email, email_verified FROM users WHERE id = $1', [userId]);
-    const user = result.rows[0];
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    // Get email from request body instead of user ID from token
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
+    
+    // Get user info by email
+    const result = await db.query('SELECT id, email, email_verified FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+    
+    if (!user) {
+      // Don't reveal that the user doesn't exist (security best practice)
+      return res.status(200).json({ message: 'If your email exists in our system, a verification email will be sent.' });
+    }
+    
     if (user.email_verified) {
       return res.status(400).json({ error: 'Email already verified' });
     }
+    
     // Generate new token
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
     await db.query(
       'UPDATE users SET verification_token = $1, verification_token_expires = $2 WHERE id = $3',
-      [verificationToken, verificationExpires, userId]
+      [verificationToken, verificationExpires, user.id]
     );
+    
     await sendVerificationEmail(user.email, verificationToken);
-    res.json({ message: 'Verification email sent.' });
+    
+    res.json({ 
+      success: true,
+      message: 'Verification email sent.'
+    });
   } catch (error) {
     console.error('Resend verification email error:', error);
-    res.status(500).json({ error: 'Server error while resending verification email' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error while resending verification email'
+    });
   }
 };
 

@@ -1,7 +1,17 @@
 # CHANGELOG for Thesis Production Funds App
 
 ## Backend 
-<!-- (Always make the recent update ascending after this) -->
+(Always make the recent update ascending after this)
+
+Update #42
+- Fixed Email Verification Resend Functionality:
+  - Modified resendVerificationEmail endpoint to accept email in request body
+  - Removed authentication requirement for verification email resend
+  - Improved error handling for non-existent emails
+  - Enhanced security by not revealing if an email exists
+  - Added success flag to API responses
+  - Fixed issue with "Email already verified" error for unverified accounts
+  - Improved server error messages and structure
 
 Update #41
 - Modernized Email Templates with Enhanced Design:
@@ -413,11 +423,21 @@ Update #1
 - Created login endpoint with PostgreSQL integration
 - Set up database connection and configuration
 - Added middleware for authentication
-<!-- (Do not put any recent updates below here) -->
+(Do not put any recent updates below here)
 ---
-<!-- PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING -->
+PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
 ## Frontend
-<!-- (Always make the recent update ASECENDING after this) -->
+(Always make the recent update ASECENDING after this)
+
+Update #70
+- Fixed Email Verification Resend in VerifyEmailInfo Component:
+  - Updated to use new API endpoint without authentication
+  - Removed token requirement for resending verification emails
+  - Improved error handling to match updated backend responses
+  - Enhanced user feedback during the resend process
+  - Maintained cooldown timer and resend count features
+  - Fixed "Email already verified" error for unverified accounts
+  - Added proper request body with email parameter
 
 Update #69
 - Enhanced Email Verification Page with Better UX:
