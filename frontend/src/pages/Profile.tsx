@@ -500,8 +500,7 @@ const Profile = () => {
                 </svg>
               ) : (
                 <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2a2.828 2.828 0 11-4-4 2.828 2.828 0 014 4z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7l-1.5 1.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M6.8 21h3.4a1 1 0 00.8-.4l9.6-12a1 1 0 000-1.2l-2.8-3.6a1 1 0 00-1.2 0l-9.6 12a1 1 0 00-.2.6v3.4a1 1 0 001 1z" />
                 </svg>
               )}
             </button>
