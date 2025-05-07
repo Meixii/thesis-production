@@ -23,6 +23,9 @@ const upload = multer({
 // Protected routes - require authentication
 router.use(authenticateToken);
 
+// Add after router.use(authenticateToken)
+router.get('/', require('../controllers/groupController').getAllGroups);
+
 // Create a new group
 router.post('/', createGroup);
 

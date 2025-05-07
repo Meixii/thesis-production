@@ -27,7 +27,7 @@ const TypewriterEffect: React.FC = () => {
     "please work",
     "ctrl+s for life",
     "lorem ipsum",
-    "debugging marathon",
+    "creating bugs",
     "push to main",
     "merge conflicts",
     "help me grok",
@@ -47,7 +47,9 @@ const TypewriterEffect: React.FC = () => {
     "404 not found",
     "console.log life",
     "import caffeine",
-    "alt+tab master"
+    "alt+tab master",
+    "gl sa ojt <3",
+    "zengarden dev"
   ];
 
   const [currentText, setCurrentText] = useState("");

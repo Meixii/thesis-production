@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 /**
  * Request an intra-group loan
@@ -542,11 +543,251 @@ const getApprovedLoans = async (req, res) => {
   }
 };
 
+/**
+ * Mark a loan as disbursed (FC only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const markLoanAsDisbursed = async (req, res) => {
+  const userId = req.user.userId;
+  const loanId = req.params.loanId;
+  const { disbursement_ref_id, notes } = req.body;
+  const proofFile = req.file;
+
+  try {
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // Get loan details
+      const loanResult = await client.query('SELECT * FROM loans WHERE id = $1', [loanId]);
+      if (!loanResult.rows.length) throw new Error('Loan not found');
+      const loan = loanResult.rows[0];
+      // Check if user is FC of providing group
+      const userResult = await client.query('SELECT role, group_id FROM users WHERE id = $1', [userId]);
+      if (!userResult.rows.length) throw new Error('User not found');
+      const user = userResult.rows[0];
+      if (user.role !== 'finance_coordinator' || user.group_id !== loan.providing_group_id) {
+        throw new Error('Only the finance coordinator of the providing group can disburse this loan');
+      }
+      // Only allow if loan is approved
+      if (loan.status !== 'approved') {
+        throw new Error('Only approved loans can be marked as disbursed');
+      }
+      // Handle proof upload
+      let proofUrl = null;
+      if (proofFile) {
+        try {
+          const uploadResult = await uploadToCloudinary(proofFile, {
+            loanDisbursement: true,
+            loanId,
+            userId
+          });
+          proofUrl = uploadResult.secure_url;
+        } catch (err) {
+          if (process.env.NODE_ENV === 'production') {
+            console.warn('Continuing disbursement without proof image');
+          } else {
+            throw new Error('Disbursement proof upload failed: ' + err.message);
+          }
+        }
+      }
+      // Update loan
+      await client.query(`
+        UPDATE loans SET
+          status = 'disbursed',
+          disbursement_date = NOW(),
+          disbursement_proof_url = $1,
+          disbursement_ref_id = $2,
+          disbursed_by_user_id = $3,
+          notes = COALESCE($4, notes)
+        WHERE id = $5
+      `, [proofUrl, disbursement_ref_id || null, userId, notes || null, loanId]);
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'Loan marked as disbursed', loanId });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Disburse loan error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Record a manual loan repayment (FC only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const recordLoanRepayment = async (req, res) => {
+  const userId = req.user.userId;
+  const loanId = req.params.loanId;
+  const { amount, repayment_date, notes } = req.body;
+  const proofFile = req.file;
+
+  if (!amount || isNaN(amount) || Number(amount) <= 0) {
+    return res.status(400).json({ success: false, error: 'Valid amount is required' });
+  }
+
+  try {
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // Get loan details
+      const loanResult = await client.query('SELECT * FROM loans WHERE id = $1', [loanId]);
+      if (!loanResult.rows.length) throw new Error('Loan not found');
+      const loan = loanResult.rows[0];
+      // Check if user is FC of providing group
+      const userResult = await client.query('SELECT role, group_id FROM users WHERE id = $1', [userId]);
+      if (!userResult.rows.length) throw new Error('User not found');
+      const user = userResult.rows[0];
+      if (user.role !== 'finance_coordinator' || user.group_id !== loan.providing_group_id) {
+        throw new Error('Only the finance coordinator of the providing group can record repayments');
+      }
+      // Only allow if loan is disbursed or partially repaid
+      if (!['disbursed', 'partially_repaid'].includes(loan.status)) {
+        throw new Error('Can only record repayments for disbursed or partially repaid loans');
+      }
+      // Handle proof upload
+      let proofUrl = null;
+      if (proofFile) {
+        try {
+          const uploadResult = await uploadToCloudinary(proofFile, {
+            loanRepayment: true,
+            loanId,
+            userId
+          });
+          proofUrl = uploadResult.secure_url;
+        } catch (err) {
+          if (process.env.NODE_ENV === 'production') {
+            console.warn('Continuing repayment without proof image');
+          } else {
+            throw new Error('Repayment proof upload failed: ' + err.message);
+          }
+        }
+      }
+      // Insert loan_repayments record (manual, so payment_id is null)
+      const repaymentResult = await client.query(`
+        INSERT INTO loan_repayments (loan_id, payment_id, amount, repayment_date, recorded_by_user_id, notes)
+        VALUES ($1, NULL, $2, $3, $4, $5)
+        RETURNING id, amount, repayment_date
+      `, [loanId, amount, repayment_date || new Date(), userId, notes || null]);
+      // Update total_amount_repaid in loans
+      const newTotal = Number(loan.total_amount_repaid || 0) + Number(amount);
+      let newStatus = loan.status;
+      if (newTotal >= Number(loan.amount_approved)) {
+        newStatus = 'fully_repaid';
+      } else {
+        newStatus = 'partially_repaid';
+      }
+      await client.query(`
+        UPDATE loans SET total_amount_repaid = $1, status = $2 WHERE id = $3
+      `, [newTotal, newStatus, loanId]);
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'Loan repayment recorded', repaymentId: repaymentResult.rows[0].id, newStatus });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Record loan repayment error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Request an inter-group loan (FC only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const requestInterGroupLoan = async (req, res) => {
+  const userId = req.user.userId;
+  const { target_group_id, amount, due_date, notes } = req.body;
+  if (!target_group_id || !amount || !due_date) {
+    return res.status(400).json({ success: false, error: 'target_group_id, amount, and due_date are required' });
+  }
+  if (isNaN(amount) || Number(amount) <= 0) {
+    return res.status(400).json({ success: false, error: 'Amount must be a positive number' });
+  }
+  try {
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // Get FC's group
+      const userResult = await client.query('SELECT role, group_id FROM users WHERE id = $1', [userId]);
+      if (!userResult.rows.length) throw new Error('User not found');
+      const user = userResult.rows[0];
+      if (user.role !== 'finance_coordinator') {
+        throw new Error('Only finance coordinators can request inter-group loans');
+      }
+      const requestingGroupId = user.group_id;
+      if (!requestingGroupId) throw new Error('User must belong to a group');
+      if (String(requestingGroupId) === String(target_group_id)) {
+        throw new Error('Cannot request a loan from your own group');
+      }
+      // Check target group exists
+      const targetGroupResult = await client.query('SELECT id FROM groups WHERE id = $1', [target_group_id]);
+      if (!targetGroupResult.rows.length) throw new Error('Target group not found');
+      // Check for active inter-group loan
+      const activeLoanResult = await client.query(`
+        SELECT COUNT(*) FROM loans WHERE requesting_group_id = $1 AND providing_group_id = $2 AND loan_type = 'inter_group' AND status IN ('requested', 'approved', 'disbursed', 'partially_repaid')
+      `, [requestingGroupId, target_group_id]);
+      if (parseInt(activeLoanResult.rows[0].count) > 0) {
+        throw new Error('There is already an active inter-group loan request between these groups');
+      }
+      // Validate amount against system/group limits (optional: can add more logic here)
+      // Create loan record
+      const loanResult = await client.query(`
+        INSERT INTO loans (
+          loan_type,
+          requesting_user_id,
+          requesting_group_id,
+          providing_group_id,
+          amount_requested,
+          status,
+          due_date,
+          notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+      `, [
+        'inter_group',
+        userId,
+        requestingGroupId,
+        target_group_id,
+        amount,
+        'requested',
+        due_date,
+        notes || null
+      ]);
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'Inter-group loan request submitted', loanId: loanResult.rows[0].id });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Inter-group loan request error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   requestIntraLoan,
   getLoanById,
   getUserLoans,
   approveLoan,
   rejectLoan,
-  getApprovedLoans
+  getApprovedLoans,
+  markLoanAsDisbursed,
+  recordLoanRepayment,
+  requestInterGroupLoan
 }; 
