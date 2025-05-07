@@ -176,10 +176,10 @@ const FCDashboard = () => {
     }).format(amount);
   };
 
-  const formatPercentage = (current: number, goal: number) => {
-    if (goal === 0) return '0%';
-    return `${Math.round((current / goal) * 100)}%`;
-  };
+  // const formatPercentage = (current: number, goal: number) => {
+  //   if (goal === 0) return '0%';
+  //   return `${Math.round((current / goal) * 100)}%`;
+  // };
 
   // Transform expense data for pie chart
   const transformExpenseData = (): ExpenseChartData[] => {

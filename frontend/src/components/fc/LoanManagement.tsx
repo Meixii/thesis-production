@@ -90,7 +90,7 @@ const LoanManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<number | null>(null);
+  // const [userId, setUserId] = useState<number | null>(null);
   const [groupId, setGroupId] = useState<number | null>(null);
   
   // Confirmation modal state
@@ -132,10 +132,10 @@ const LoanManagement: React.FC = () => {
       }
 
       const data = await response.json();
-      const fetchedUserId = data.id || data.userId || data.data?.id || data.data?.userId;
+      // const fetchedUserId = data.id || data.userId || data.data?.id || data.data?.userId;
       const fetchedGroupId = data.groupId || data.group_id || data.data?.groupId || data.data?.group_id;
 
-      setUserId(fetchedUserId);
+      // setUserId(fetchedUserId);
       setGroupId(fetchedGroupId);
 
       return fetchedGroupId;
@@ -326,9 +326,9 @@ const LoanManagement: React.FC = () => {
     }
   };
 
-  const handleDisburse = async (loanId: number) => {
-    navigate(`/loans/disburse/${loanId}`);
-  };
+  // const handleDisburse = async (loanId: number) => {
+  //   navigate(`/loans/disburse/${loanId}`);
+  // };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
