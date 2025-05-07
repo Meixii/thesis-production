@@ -3,6 +3,17 @@
 ## Backend 
 <!-- (Always make the recent update after this) -->
 
+Update #35
+- Enhanced email system with Hostinger SMTP integration:
+  - Switched from Gmail to Hostinger SMTP for improved deliverability
+  - Added proper SMTP configuration with SSL/TLS support
+  - Improved email templates with modern, responsive design
+  - Added proper email verification system
+  - Enhanced branding consistency across all email templates
+  - Added dynamic copyright year in email footers
+  - Improved error handling for email operations
+  - Added proper sender name display in emails
+
 Update #34
 - Added partial payment functionality to Section Student Dashboard:
   - Added payment type selection (Full/Partial) in payment modal
@@ -344,7 +355,6 @@ Update #1
 
 ## Frontend
 <!-- (Always make the recent update after this) -->
-
 
 Update #68
 - Added payment system implementation
