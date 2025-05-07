@@ -529,6 +529,15 @@ PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
 ## Frontend
 (Always make the recent update ASECENDING after this)
 
+Update #77
+- Added custom 404 page:
+  - Created responsive NotFound component with consistent styling
+  - Added navigation options to return home or go back
+  - Implemented proper route handling for invalid URLs
+  - Enhanced user experience for error navigation
+  - Maintained consistent branding and styling with application design
+  - Added proper route configuration in Vercel deployment
+
 Update #76
 - Enhanced Loan Management with improved UI and error handling:
   - Added confirmation modals for loan approvals and rejections
