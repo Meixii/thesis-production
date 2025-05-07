@@ -38,6 +38,7 @@ import VerifyPayments from './components/fc/VerifyPayments';
 import Expenses from './components/fc/Expenses';
 import LoanManagement from './components/fc/LoanManagement';
 import LoanDisbursement from './components/fc/LoanDisbursement';
+import { isAuthenticated, getAuthToken } from './utils/auth';
 
 function RequireGroup({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -84,6 +85,48 @@ function RequireGroup({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  // Add this effect to check for auth on app load
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (isAuthenticated()) {
+        // Optional: Validate the token with the server
+        try {
+          const token = getAuthToken();
+          const response = await fetch(getApiUrl('/api/auth/verify-token'), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (!response.ok) {
+            // Token is invalid, clear it
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
+          }
+        } catch (error) {
+          console.error('Error verifying saved token:', error);
+        }
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  // Add this useEffect to check for authentication on app load
+  useEffect(() => {
+    // Check if user is authenticated
+    const authCheck = () => {
+      if (isAuthenticated()) {
+        // User is authenticated
+        console.log('User is authenticated on app load');
+        // You might want to refresh the token or fetch user data here
+      }
+    };
+
+    authCheck();
+  }, []);
+
   return (
     <ToastProvider>
       <Router>

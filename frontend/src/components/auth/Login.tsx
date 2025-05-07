@@ -7,6 +7,7 @@ import Button from '../ui/Button';
 // import SocialButton from '../components/ui/SocialButton';
 import { getApiUrl } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { setAuthToken } from '../../utils/auth';
 
 type UserRole = 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
 
@@ -53,7 +54,7 @@ const getRoleFromResponse = (data: any): UserRole => {
 //       return '/dashboard/student';
 //   }
 // };
-
+// Map role variations to standard roles
 const Login = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -64,12 +65,21 @@ const Login = () => {
     email: '',
     password: ''
   });
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value, type, checked } = e.target;
+    
+    if (type === 'checkbox') {
+      if (name === 'remember-me') {
+        setRememberMe(checked);
+      }
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,10 +110,10 @@ const Login = () => {
         throw new Error(data.error || 'Failed to login');
       }
 
-      // Store the token
-      localStorage.setItem('token', data.token);
+      setAuthToken(data.token, data.user, rememberMe ? 'local' : 'session');
       
-      // Get standardized role and redirect path
+      showToast('Successfully logged in!', 'success');
+      
       const userRole = getRoleFromResponse(data);
       if (userRole === 'admin') {
         showToast('Logged in as Admin', 'success');
@@ -209,6 +219,8 @@ const Login = () => {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
+                  checked={rememberMe}
+                  onChange={handleChange}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">

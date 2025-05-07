@@ -529,6 +529,19 @@ PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
 ## Frontend
 (Always make the recent update ASECENDING after this)
 
+Update #79
+- Implemented "Remember Me" functionality for improved login experience:
+  - Added persistent login option with localStorage integration
+  - Implemented session-only login that expires when browser closes
+  - Added automatic login recovery when returning to the application
+  - Enhanced auth utilities for better token management
+  - Improved logout to respect the selected storage option
+  - Added comprehensive TypeScript typing for auth functions
+  - Updated Login component with remember me state management
+  - Improved user experience with persistence options
+  - Enhanced security with proper token storage strategies
+  - Added auto-login functionality for returning users
+
 Update #78
 - Enhanced logout functionality with improved security and user experience:
   - Added logout confirmation dialog to prevent accidental logouts
