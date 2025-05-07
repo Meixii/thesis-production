@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import NotFound from './pages/NotFound';
 import AuthCallback from './components/auth/AuthCallback';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import FCDashboard from './pages/dashboard/FCDashboard';
@@ -285,7 +286,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Add more routes here later */}
+          {/* Add this as the last route to catch all unmatched routes */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </ToastProvider>
