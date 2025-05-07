@@ -1,7 +1,17 @@
 # CHANGELOG for Thesis Production Funds App
 
 ## Backend 
-<!-- (Always make the recent update after this) -->
+<!-- (Always make the recent update ascending after this) -->
+
+Update #40
+- Enhanced Email System with Hostinger Integration:
+  - Moved password reset email logic to email.js utility
+  - Updated SMTP configuration to use Hostinger settings
+  - Improved email templates with better HTML structure
+  - Added proper error handling for SMTP connection
+  - Enhanced email personalization with user's first name
+  - Improved email template styling and responsiveness
+  - Added better error logging for email failures
 
 Update #39
 - Enhanced Email Configuration with Better Error Handling:
@@ -391,7 +401,7 @@ Update #1
 - Added middleware for authentication
 <!-- (Do not put any recent updates below here) -->
 ---
-
+<!-- PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING -->
 ## Frontend
 <!-- (Always make the recent update after this) -->
 
@@ -1090,33 +1100,3 @@ Update #1
 - Implemented user authentication flow
 - Added loading and error states for login
 - Styled login page with Tailwind CSS
-<!-- (Do not put any recent updates below here) -->
----
-
-## README.md
-
-Update #1
-
-## Update #1
-- Initial project setup
-- Added basic file structure
-- Implemented authentication system
-
-## Update #2
-- Added payment system implementation
-- Created frontend payment form with QR code support
-- Integrated Cloudinary for receipt uploads
-- Added payment verification system for Finance Coordinators
-- Fixed auth middleware and role-based access control
-- Updated QR code images to use JPG format
-
-## Documentation 
-
-Update #1
-- Updated README.md with accurate database schema:
-  - Corrected groups table schema to match actual implementation
-  - Added group_code field to groups table definition
-  - Fixed field naming conventions (group_name instead of name)
-  - Removed non-existent description field references
-  - Updated backend code to properly use the schema fields
-  - Ensured consistency between documentation and implementation
