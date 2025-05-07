@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-// import Button from './Button';
+import LogoutButton from './LogoutButton';
 
 interface NavigationProps {
   userRole: 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
@@ -361,15 +361,11 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
               </svg>
               Profile
             </Link>
-            <button
-              onClick={onLogout}
+            <LogoutButton
+              variant="link"
               className="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 flex items-center text-sm font-medium transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Logout
-            </button>
+              onLogout={onLogout}
+            />
           </div>
             
           {/* Mobile menu button */}
@@ -424,19 +420,15 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             </svg>
             Profile
           </Link>
-          <button
-            onClick={onLogout}
+          <LogoutButton
+            variant="link"
             className="w-full border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Logout
-          </button>
+            onLogout={onLogout}
+          />
         </div>
       </div>
     </nav>
   );
 };
 
-export default Navigation; 
+export default Navigation;
