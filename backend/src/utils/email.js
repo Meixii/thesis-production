@@ -37,36 +37,174 @@ const sendVerificationEmail = async (email, token) => {
 
     const mailOptions = {
       from: {
-        name: 'Mika',
+        name: 'Mika from CSBank',
         address: process.env.EMAIL_USER
       },
       to: email,
       subject: 'Verify Your Email - CSBank',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2C3E50;">CSBank</h1>
-          </div>
-          <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #2C3E50; margin-bottom: 20px;">Welcome!</h2>
-            <p style="color: #34495E; font-size: 16px; line-height: 1.5;">Thank you for registering with CSBank. To ensure the security of your account, please verify your email address.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" 
-                 style="background-color: #3498DB; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px;">
-                Verify Email Address
-              </a>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Verify Your Email</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              line-height: 1.6;
+              color: #334155;
+              background-color: #f8fafc;
+              margin: 0;
+              padding: 0;
+            }
+            
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 40px 20px;
+            }
+            
+            .card {
+              background-color: #ffffff;
+              border-radius: 12px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+              padding: 40px;
+              margin-bottom: 20px;
+            }
+            
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+            }
+            
+            .logo {
+              font-size: 24px;
+              font-weight: 700;
+              color: #0f172a;
+              margin-bottom: 8px;
+              letter-spacing: -0.025em;
+            }
+            
+            .logo-accent {
+              color: #2563eb;
+            }
+            
+            h1 {
+              color: #0f172a;
+              font-size: 22px;
+              font-weight: 600;
+              margin: 0 0 24px;
+              letter-spacing: -0.025em;
+            }
+            
+            p {
+              margin: 0 0 24px;
+              font-size: 16px;
+            }
+            
+            .button {
+              display: inline-block;
+              background-color: #2563eb;
+              color: #ffffff !important;
+              text-decoration: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-weight: 500;
+              font-size: 16px;
+              text-align: center;
+              transition: background-color 0.2s;
+            }
+            
+            .button:hover {
+              background-color: #1d4ed8;
+            }
+            
+            .link-container {
+              margin: 24px 0;
+              padding: 16px;
+              background-color: #f1f5f9;
+              border-radius: 8px;
+              word-break: break-all;
+            }
+            
+            .link {
+              color: #2563eb;
+              font-size: 14px;
+              text-decoration: none;
+            }
+            
+            .divider {
+              height: 1px;
+              background-color: #e2e8f0;
+              margin: 32px 0;
+            }
+            
+            .footer {
+              text-align: center;
+              color: #64748b;
+              font-size: 14px;
+              margin-top: 32px;
+            }
+            
+            .note {
+              font-size: 14px;
+              color: #64748b;
+              font-style: italic;
+            }
+            
+            .icon {
+              display: block;
+              margin: 0 auto 24px;
+              width: 48px;
+              height: 48px;
+            }
+            
+            @media only screen and (max-width: 480px) {
+              .card {
+                padding: 24px;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="card">
+              <div class="header">
+                <div class="logo">CS<span class="logo-accent">Bank</span></div>
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#2563eb">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              
+              <h1>Verify your email address</h1>
+              <p>Thanks for signing up for CSBank! We're excited to have you as a member of our community. Please confirm your email address by clicking the button below:</p>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${verificationUrl}" class="button">Verify My Email</a>
+              </div>
+              
+              <p class="note">This link will expire in 24 hours.</p>
+              
+              <div class="divider"></div>
+              
+              <p style="margin-bottom: 16px;">If the button above doesn't work, copy and paste this URL into your browser:</p>
+              <div class="link-container">
+                <a href="${verificationUrl}" class="link">${verificationUrl}</a>
+              </div>
+              
+              <p class="note">If you didn't create an account with CSBank, you can safely ignore this email.</p>
             </div>
-            <p style="color: #7F8C8D; margin-top: 20px;">If the button doesn't work, copy and paste this link in your browser:</p>
-            <p style="word-break: break-all; color: #7F8C8D; background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 14px;">${verificationUrl}</p>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #BDC3C7;">
-              <p style="color: #7F8C8D; font-size: 14px;">This verification link will expire in 24 hours.</p>
-              <p style="color: #7F8C8D; font-size: 14px;">If you didn't create an account, please ignore this email.</p>
+            
+            <div class="footer">
+              <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
+              <p>Secure financial solutions for your future.</p>
             </div>
           </div>
-          <div style="text-align: center; margin-top: 20px;">
-            <p style="color: #95A5A6; font-size: 12px;">© ${new Date().getFullYear()} Zen Garden. All rights reserved.</p>
-          </div>
-        </div>
+        </body>
+        </html>
       `
     };
 
@@ -85,7 +223,7 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
 
     const mailOptions = {
       from: {
-        name: 'Mika',
+        name: 'Mika from CSBank',
         address: process.env.EMAIL_USER
       },
       to: email,
@@ -98,87 +236,165 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Reset Your Password</title>
           <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            
             body {
-              font-family: 'Arial', sans-serif;
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
               line-height: 1.6;
-              color: #333;
+              color: #334155;
+              background-color: #f8fafc;
+              margin: 0;
+              padding: 0;
+            }
+            
+            .container {
               max-width: 600px;
               margin: 0 auto;
-              padding: 20px;
+              padding: 40px 20px;
             }
-            .container {
-              background-color: #f9f9f9;
-              border-radius: 8px;
-              padding: 25px;
-              border: 1px solid #e1e1e1;
+            
+            .card {
+              background-color: #ffffff;
+              border-radius: 12px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.03);
+              padding: 40px;
+              margin-bottom: 20px;
             }
+            
             .header {
               text-align: center;
-              margin-bottom: 20px;
+              margin-bottom: 30px;
             }
+            
             .logo {
-              font-size: 22px;
-              font-weight: bold;
+              font-size: 24px;
+              font-weight: 700;
+              color: #0f172a;
+              margin-bottom: 8px;
+              letter-spacing: -0.025em;
+            }
+            
+            .logo-accent {
               color: #2563eb;
             }
+            
             h1 {
-              color: #1f2937;
-              margin-bottom: 15px;
-              font-size: 24px;
+              color: #0f172a;
+              font-size: 22px;
+              font-weight: 600;
+              margin: 0 0 24px;
+              letter-spacing: -0.025em;
             }
+            
             p {
-              margin-bottom: 20px;
-              color: #4b5563;
+              margin: 0 0 24px;
+              font-size: 16px;
             }
+            
             .button {
               display: inline-block;
               background-color: #2563eb;
-              color: #ffffff;
+              color: #ffffff !important;
               text-decoration: none;
               padding: 12px 24px;
-              border-radius: 4px;
-              font-weight: bold;
-              margin: 15px 0;
+              border-radius: 8px;
+              font-weight: 500;
+              font-size: 16px;
               text-align: center;
+              transition: background-color 0.2s;
             }
+            
             .button:hover {
               background-color: #1d4ed8;
             }
-            .footer {
-              margin-top: 30px;
-              text-align: center;
-              font-size: 12px;
-              color: #6b7280;
+            
+            .link-container {
+              margin: 24px 0;
+              padding: 16px;
+              background-color: #f1f5f9;
+              border-radius: 8px;
+              word-break: break-all;
             }
-            .expiry {
+            
+            .link {
+              color: #2563eb;
               font-size: 14px;
-              color: #dc2626;
-              margin-top: 15px;
+              text-decoration: none;
             }
+            
             .divider {
-              border-top: 1px solid #e5e7eb;
-              margin: 20px 0;
+              height: 1px;
+              background-color: #e2e8f0;
+              margin: 32px 0;
+            }
+            
+            .footer {
+              text-align: center;
+              color: #64748b;
+              font-size: 14px;
+              margin-top: 32px;
+            }
+            
+            .note {
+              font-size: 14px;
+              color: #64748b;
+              font-style: italic;
+            }
+            
+            .expiry {
+              color: #ef4444;
+              font-weight: 500;
+              font-size: 14px;
+              margin: 24px 0;
+            }
+            
+            .icon {
+              display: block;
+              margin: 0 auto 24px;
+              width: 48px;
+              height: 48px;
+            }
+            
+            @media only screen and (max-width: 480px) {
+              .card {
+                padding: 24px;
+              }
             }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <div class="logo">CSBank</div>
+            <div class="card">
+              <div class="header">
+                <div class="logo">CS<span class="logo-accent">Bank</span></div>
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#2563eb">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              
+              <h1>Reset your password</h1>
+              <p>Hello ${firstName || 'there'},</p>
+              <p>We received a request to reset the password for your CSBank account. Click the button below to create a new password:</p>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${resetUrl}" class="button">Reset My Password</a>
+              </div>
+              
+              <p class="expiry">⚠️ This link will expire in 1 hour for security reasons.</p>
+              
+              <div class="divider"></div>
+              
+              <p style="margin-bottom: 16px;">If the button above doesn't work, copy and paste this URL into your browser:</p>
+              <div class="link-container">
+                <a href="${resetUrl}" class="link">${resetUrl}</a>
+              </div>
+              
+              <p class="note">If you didn't request a password reset, please ignore this email or contact our support team if you have any concerns.</p>
             </div>
-            <h1>Reset Your Password</h1>
-            <p>Hello ${firstName || 'there'},</p>
-            <p>We received a request to reset your password for your CSBank account. Click the button below to set a new password:</p>
-            <div style="text-align: center;">
-              <a href="${resetUrl}" class="button">Reset Password</a>
-            </div>
-            <p class="expiry">This link will expire in 1 hour.</p>
-            <p>If you didn't request a password reset, you can safely ignore this email. Your account is secure.</p>
-            <div class="divider"></div>
-            <p>If the button above doesn't work, copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; font-size: 14px;"><a href="${resetUrl}" style="color: #2563eb;">${resetUrl}</a></p>
+            
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} Zen Garden. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
+              <p>Secure financial solutions for your future.</p>
             </div>
           </div>
         </body>

@@ -3,6 +3,20 @@
 ## Backend 
 <!-- (Always make the recent update ascending after this) -->
 
+Update #41
+- Modernized Email Templates with Enhanced Design:
+  - Complete redesign of email templates with modern UI
+  - Added responsive design with mobile optimization
+  - Implemented proper typography with Inter font
+  - Enhanced visual hierarchy with better spacing and layout
+  - Added SVG icons for better visual cues
+  - Improved color scheme with better accessibility
+  - Enhanced call-to-action buttons with hover states
+  - Added better link presentation in a dedicated container
+  - Updated sender name to "Mika from CSBank" for better recognition
+  - Improved security messaging for password reset emails
+  - Added responsive meta tags for proper mobile rendering
+
 Update #40
 - Enhanced Email System with Hostinger Integration:
   - Moved password reset email logic to email.js utility
