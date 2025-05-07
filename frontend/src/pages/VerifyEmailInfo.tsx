@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import { useToast } from '../context/ToastContext';
@@ -9,6 +9,10 @@ const VerifyEmailInfo = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const email = location.state?.email || 'your email';
+  const [isLoading, setIsLoading] = useState(false);
+  const [resendCount, setResendCount] = useState(0);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState(0);
 
   // Redirect to login if someone navigates here directly without an email
   useEffect(() => {
@@ -19,14 +23,45 @@ const VerifyEmailInfo = () => {
     }
   }, [location.state, navigate]);
 
+  // Cooldown timer effect
+  useEffect(() => {
+    let timer: number;
+    if (cooldownActive && cooldownTime > 0) {
+      timer = window.setInterval(() => {
+        setCooldownTime((prevTime) => {
+          if (prevTime <= 1) {
+            setCooldownActive(false);
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cooldownActive, cooldownTime]);
+
   const handleResendVerification = async () => {
+    if (cooldownActive) return;
+    
+    setIsLoading(true);
     try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        showToast('You need to be logged in to resend the verification email.', 'error');
+        navigate('/login');
+        return;
+      }
+      
       const response = await fetch(getApiUrl('/api/auth/verify-email/resend'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email })
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       const data = await response.json();
@@ -35,9 +70,22 @@ const VerifyEmailInfo = () => {
         throw new Error(data.error || 'Failed to resend verification email');
       }
 
-      showToast('Verification email has been resent. Please check your inbox.');
+      // Increment resend count and start cooldown
+      setResendCount(prev => prev + 1);
+      if (resendCount >= 2) {
+        setCooldownActive(true);
+        setCooldownTime(60); // 60 second cooldown after 3 attempts
+      }
+
+      showToast('Verification email has been resent. Please check your inbox.', 'success');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to resend verification email');
+      console.error('Resend verification error:', err);
+      showToast(
+        err instanceof Error ? err.message : 'Failed to resend verification email', 
+        'error'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,10 +110,24 @@ const VerifyEmailInfo = () => {
               <p>Didn't receive the email? Check your spam folder or</p>
               <button
                 onClick={handleResendVerification}
-                className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+                disabled={isLoading || cooldownActive}
+                className={`mt-2 font-medium ${
+                  isLoading || cooldownActive
+                    ? 'text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                    : 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
+                }`}
               >
-                Click here to resend
+                {isLoading 
+                  ? 'Sending...' 
+                  : cooldownActive 
+                    ? `Try again in ${cooldownTime} seconds` 
+                    : 'Click here to resend'}
               </button>
+              {resendCount > 0 && (
+                <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                  Verification email resent {resendCount} {resendCount === 1 ? 'time' : 'times'}
+                </p>
+              )}
             </div>
             <button
               onClick={() => navigate('/login')}

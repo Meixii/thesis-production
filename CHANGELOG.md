@@ -417,7 +417,21 @@ Update #1
 ---
 <!-- PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING -->
 ## Frontend
-<!-- (Always make the recent update after this) -->
+<!-- (Always make the recent update ASECENDING after this) -->
+
+Update #69
+- Enhanced Email Verification Page with Better UX:
+  - Added proper authentication token handling for resend functionality
+  - Implemented loading state feedback during email resend
+  - Added cooldown timer to prevent abuse of resend function
+  - Implemented resend count tracking to show number of attempts
+  - Enhanced error handling with detailed error messages
+  - Improved button states with proper disabled styling
+  - Added visual feedback during the resend process
+  - Implemented proper error and success toast messaging
+  - Added console error logging for debugging
+  - Enhanced security with bearer token authentication
+  - Improved redirect handling for unauthenticated users
 
 Update #68
 - Added payment system implementation
