@@ -463,9 +463,9 @@ const LoanManagement: React.FC = () => {
     fetch(getApiUrl('/api/loans/approved'), {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
     })
-      .then(res => res.json())
-      .then(data => setApprovedLoans(data.loans || []))
-      .catch(err => setApprovedError('Failed to fetch approved loans'))
+      .then((res) => res.json())
+      .then((data) => setApprovedLoans(data.loans || []))
+      .catch(() => setApprovedError('Failed to fetch approved loans'))
       .finally(() => setApprovedLoading(false));
   }, [groupId]);
 

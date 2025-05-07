@@ -69,9 +69,9 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({
         onConfirm={handleConfirmedLogout}
         title="Confirm Logout"
         message="Are you sure you want to log out? You'll need to log in again to access your account."
-        confirmLabel="Yes, Log Out"
-        cancelLabel="Cancel"
-        confirmButtonClass="bg-red-600 hover:bg-red-700 focus:ring-red-500"
+        confirmText="Yes, Log Out"
+        cancelText="Cancel"
+        confirmVariant="danger"
       />
     </>
   );

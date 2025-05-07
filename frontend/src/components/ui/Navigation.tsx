@@ -364,8 +364,8 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
               Profile
             </Link>
             <LogoutButton
-              variant="link"
-              className="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 flex items-center text-sm font-medium transition-colors"
+              variant="danger"
+              className="flex items-center text-sm font-medium transition-colors"
               onLogout={onLogout}
             />
           </div>
@@ -423,8 +423,8 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             Profile
           </Link>
           <LogoutButton
-            variant="link"
-            className="w-full border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors"
+            variant="danger"
+            className="w-full block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors"
             onLogout={onLogout}
           />
         </div>

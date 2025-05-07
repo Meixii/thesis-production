@@ -557,6 +557,20 @@ PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
 ## Frontend
 (Always make the recent update ASECENDING after this)
 
+Update #80
+- Added 'danger' (red) variant to Button component for destructive actions.
+- Updated ConfirmModal to accept 'danger' as confirmVariant for confirm button.
+- Updated LogoutButton to use confirmVariant='danger' for a red logout confirmation button.
+- Updated Logout button in Navigation to use the 'danger' (red) variant for both desktop and mobile views for visual consistency and clarity.
+- Fixed LogoutButtonProps to support the 'danger' variant, matching Button component.
+
+Update #79
+- Fixed linter errors in LogoutButton component:
+  - Removed unsupported 'danger' variant from Button and LogoutButtonProps
+  - Updated ConfirmModal usage to use 'confirmText' and 'cancelText' props instead of 'confirmLabel' and 'cancelLabel'
+  - Removed unsupported 'confirmButtonClass' prop from ConfirmModal
+  - Ensured only valid props are passed to Button and ConfirmModal
+
 Update #78
 - Enhanced logout functionality with improved security and user experience:
   - Added logout confirmation dialog to prevent accidental logouts

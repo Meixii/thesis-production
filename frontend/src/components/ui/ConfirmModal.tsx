@@ -10,7 +10,7 @@ interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  confirmVariant?: 'primary' | 'secondary';
+  confirmVariant?: 'primary' | 'secondary' | 'danger';
   isLoading?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
