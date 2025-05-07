@@ -653,8 +653,8 @@ const Profile = () => {
                   </form>
                 ) : (
                   <div className="space-y-6">
-                    {/* Basic Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                    {/* Basic Info - Changed to single column layout */}
+                    <div className="space-y-4">
                       <div className="space-y-1">
                         <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Full Name</h3>
                         <p className="text-base font-medium text-neutral-900 dark:text-white">
@@ -665,14 +665,14 @@ const Profile = () => {
                         <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Email</h3>
                         <p className="text-base font-medium text-neutral-900 dark:text-white">{profile?.email}</p>
                       </div>
-                      </div>
+                    </div>
 
-                    {/* Role & Group Info */}
+                    {/* Role & Group Info - Added text-center */}
                     <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                        <div className="space-y-1">
+                        <div className="space-y-1 text-center">
                           <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Role</h3>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
                               ${userRole === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                               : userRole === 'finance_coordinator' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
@@ -687,9 +687,9 @@ const Profile = () => {
                           </div>
                         </div>
                         {profile?.groupId && (
-                          <div className="space-y-1">
+                          <div className="space-y-1 text-center">
                             <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Group</h3>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center gap-2">
                               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
                                 ${profile.groupType === 'section' 
                                   ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
@@ -697,10 +697,10 @@ const Profile = () => {
                               >
                                 {profile.groupName}
                                 {profile.groupType === 'section' ? ' (Section)' : ' (Thesis)'}
-                            </span>
+                              </span>
                             </div>
                           </div>
-                          )}
+                        )}
                       </div>
                     </div>
 
@@ -837,4 +837,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;

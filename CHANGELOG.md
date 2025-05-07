@@ -557,6 +557,14 @@ PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
 ## Frontend
 (Always make the recent update ASECENDING after this)
 
+Update #82
+- Improved Profile page UI organization and clarity:
+  - Restructured Personal Information section with dedicated rows for Full Name and Email
+  - Added centered alignment for Role and Group information 
+  - Replaced profile picture edit icon with pencil icon for better UX
+  - Maintained consistent styling and responsiveness across different screen sizes
+  - Enhanced visual hierarchy and scanability of user information
+  
 Update #81
 - Added default profile pictures for all new users:
   - Integrated DiceBear API to generate unique avatars based on email addresses
