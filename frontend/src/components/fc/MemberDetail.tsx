@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getApiUrl } from '../utils/api';
-import Navigation from '../components/ui/Navigation';
-import { useToast } from '../context/ToastContext';
+import { getApiUrl } from '../../utils/api';
+import Navigation from '../ui/Navigation';
+import { useToast } from '../../context/ToastContext';
 
 interface Contribution {
   id: number;
@@ -61,36 +61,64 @@ const MemberDetail: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const fetchMemberData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
-        if (!token) {
-          navigate('/login');
-          return;
-        }
-
-        const response = await fetch(getApiUrl(`/api/groups/users/${memberId}/contributions`), {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch member details');
-        }
-
-        const data = await response.json();
-        setMemberData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        showToast(err instanceof Error ? err.message : 'Failed to load member details', 'error');
-      } finally {
-        setLoading(false);
+  const fetchMemberData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
       }
-    };
 
+      if (!memberId) {
+        throw new Error('Member ID is missing. Please return to the members list and try again.');
+      }
+
+      const response = await fetch(getApiUrl(`/api/groups/users/${memberId}/contributions`), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to fetch member details (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Validate response data structure
+      if (!data.user || !data.contributions || !data.payments || !data.loans) {
+        throw new Error('Invalid response format: Missing required data fields');
+      }
+      
+      // Check if user object has all required fields
+      if (!data.user.id || !data.user.name || data.user.email === undefined) {
+        throw new Error('Invalid user data in response');
+      }
+      
+      // Ensure contributions, payments, and loans are arrays
+      if (!Array.isArray(data.contributions) || !Array.isArray(data.payments) || !Array.isArray(data.loans)) {
+        throw new Error('Invalid response format: Contributions, payments, or loans data is not an array');
+      }
+      
+      console.log('Member details loaded successfully:', data);
+      setMemberData(data);
+      showToast('Member details refreshed successfully', 'success');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      console.error('Error fetching member details:', errorMessage);
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (memberId) {
       fetchMemberData();
     }
@@ -187,7 +215,7 @@ const MemberDetail: React.FC = () => {
           </thead>
           <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
             {memberData.contributions.map((contribution) => (
-              <tr key={contribution.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-750">
+              <tr key={contribution.id} className="hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
                   {contribution.week_number}
                 </td>
@@ -200,16 +228,16 @@ const MemberDetail: React.FC = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{contribution.base_amount.toFixed(2)}
+                  ₱{(contribution.base_amount || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{contribution.penalty.toFixed(2)}
+                  ₱{(contribution.penalty || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{contribution.amount_paid.toFixed(2)}
+                  ₱{(contribution.amount_paid || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{contribution.amount_due.toFixed(2)}
+                  ₱{(contribution.amount_due || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
                   {formatDateTime(contribution.updated_at)}
@@ -264,19 +292,19 @@ const MemberDetail: React.FC = () => {
           </thead>
           <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
             {memberData.payments.map((payment) => (
-              <tr key={payment.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-750">
+              <tr key={payment.id} className="hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
                   {formatDate(payment.created_at)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-white">
-                  ₱{payment.amount.toFixed(2)}
+                  ₱{(payment.amount || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  {payment.method.charAt(0).toUpperCase() + payment.method.slice(1)}
+                  {payment.method ? payment.method.charAt(0).toUpperCase() + payment.method.slice(1) : 'Unknown'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(payment.status)}`}>
-                    {payment.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                    {payment.status ? payment.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Unknown'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
@@ -352,7 +380,7 @@ const MemberDetail: React.FC = () => {
           </thead>
           <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
             {memberData.loans.map((loan) => (
-              <tr key={loan.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-750">
+              <tr key={loan.id} className="hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
                   {formatDate(loan.request_date)}
                 </td>
@@ -360,10 +388,10 @@ const MemberDetail: React.FC = () => {
                   {loan.loan_type === 'intra_group' ? 'Intra-Group' : 'Inter-Group'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-white">
-                  ₱{loan.amount.toFixed(2)}
+                  {loan.amount !== null ? `₱${loan.amount.toFixed(2)}` : 'Pending'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{loan.fee.toFixed(2)}
+                  ₱{(loan.fee || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(loan.status)}`}>
@@ -371,10 +399,10 @@ const MemberDetail: React.FC = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{loan.amount_repaid.toFixed(2)}
+                  ₱{(loan.amount_repaid || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
-                  ₱{loan.amount_remaining.toFixed(2)}
+                  ₱{(loan.amount_remaining || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
                   {loan.due_date ? formatDate(loan.due_date) : 'N/A'}
@@ -392,26 +420,62 @@ const MemberDetail: React.FC = () => {
       <Navigation userRole="finance_coordinator" onLogout={() => {}} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center mb-6">
-          <Link 
-            to="/members" 
-            className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 mr-4"
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Link 
+              to="/members" 
+              className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 mr-4"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+              Back to Members
+            </Link>
+            <h2 className="text-2xl font-semibold">Member Details</h2>
+          </div>
+          
+          <button
+            onClick={fetchMemberData}
+            disabled={loading}
+            className="flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Back to Members
-          </Link>
-          <h2 className="text-2xl font-semibold">Member Details</h2>
+            {loading ? 'Refreshing...' : 'Refresh Data'}
+          </button>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary-600"></div>
+          <div className="flex flex-col justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary-600 mb-4"></div>
+            <p className="text-neutral-600 dark:text-neutral-400">Loading member details...</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">Retrieving contributions, payments, and loan history</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400 p-4 rounded-md">
-            {error}
+            <p className="font-semibold mb-1">Error loading member details:</p>
+            <p>{error}</p>
+            <div className="mt-4 flex space-x-3">
+              <button 
+                onClick={fetchMemberData} 
+                className="px-3 py-1 text-sm bg-red-100 dark:bg-red-800/20 text-red-800 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-700/20 transition-colors duration-200"
+              >
+                Try Again
+              </button>
+              <Link 
+                to="/members" 
+                className="px-3 py-1 text-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-300 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors duration-200"
+              >
+                Return to Members List
+              </Link>
+            </div>
           </div>
         ) : memberData ? (
           <>
@@ -427,13 +491,13 @@ const MemberDetail: React.FC = () => {
                       <div>
                         <p className="text-sm text-neutral-500 dark:text-neutral-400">Total Contributed</p>
                         <p className="text-xl font-semibold text-primary-600 dark:text-primary-400">
-                          ₱{memberData.contributions.reduce((sum, item) => sum + item.amount_paid, 0).toFixed(2)}
+                          ₱{memberData.contributions.reduce((sum, item) => sum + (item.amount_paid || 0), 0).toFixed(2)}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-neutral-500 dark:text-neutral-400">Outstanding Balance</p>
                         <p className="text-xl font-semibold text-amber-600 dark:text-amber-400">
-                          ₱{memberData.contributions.reduce((sum, item) => sum + item.amount_due, 0).toFixed(2)}
+                          ₱{memberData.contributions.reduce((sum, item) => sum + (item.amount_due || 0), 0).toFixed(2)}
                         </p>
                       </div>
                       <div>
@@ -441,7 +505,7 @@ const MemberDetail: React.FC = () => {
                         <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">
                           ₱{memberData.loans
                               .filter(loan => ['disbursed', 'partially_repaid'].includes(loan.status))
-                              .reduce((sum, loan) => sum + loan.amount_remaining, 0)
+                              .reduce((sum, loan) => sum + (loan.amount_remaining || 0), 0)
                               .toFixed(2)}
                         </p>
                       </div>
@@ -457,7 +521,7 @@ const MemberDetail: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('contributions')}
                     className={`
-                      py-4 px-6 text-sm font-medium border-b-2 focus:outline-none
+                      py-4 px-6 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200
                       ${activeTab === 'contributions'
                         ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'
@@ -469,7 +533,7 @@ const MemberDetail: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('payments')}
                     className={`
-                      py-4 px-6 text-sm font-medium border-b-2 focus:outline-none
+                      py-4 px-6 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200
                       ${activeTab === 'payments'
                         ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'
@@ -481,7 +545,7 @@ const MemberDetail: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('loans')}
                     className={`
-                      py-4 px-6 text-sm font-medium border-b-2 focus:outline-none
+                      py-4 px-6 text-sm font-medium border-b-2 focus:outline-none transition-colors duration-200
                       ${activeTab === 'loans'
                         ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'

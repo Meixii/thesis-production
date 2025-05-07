@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { getApiUrl } from '../utils/api';
+import Card from '../ui/Card';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+import { getApiUrl } from '../../utils/api';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');

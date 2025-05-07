@@ -99,34 +99,34 @@
 - [x] **Frontend:** (Optional) Display simple charts/visualizations.
 
 ### B. Member Management & Overview
-- [ ] **Backend:** API endpoint to get all members in the FC's group (`/api/groups/:groupId/members`). Include summary payment/loan status per member.
-- [ ] **Frontend:** Create Member List UI Table.
-- [ ] **Frontend:** Display member name, email, current week status, total balance, total contributed, active loan amount.
-- [ ] **Frontend:** Implement filtering/sorting/search for member table.
-- [ ] **Backend:** API endpoint to get detailed payment/contribution history for a specific user (`/api/users/:userId/contributions`).
-- [ ] **Frontend:** Ability to click member to view detailed history.
+- [x] **Backend:** API endpoint to get all members in the FC's group (`/api/groups/:groupId/members`). Include summary payment/loan status per member.
+- [x] **Frontend:** Create Member List UI Table.
+- [x] **Frontend:** Display member name, email, current week status, total balance, total contributed, active loan amount.
+- [x] **Frontend:** Implement filtering/sorting/search for member table.
+- [x] **Backend:** API endpoint to get detailed payment/contribution history for a specific user (`/api/groups/users/:userId/contributions`).
+- [x] **Frontend:** Ability to click member to view detailed history.
 
 ### C. Payment Verification
-- [ ] **Backend:** API endpoint to get payments pending verification for the group (`/api/groups/:groupId/payments/pending`).
-- [ ] **Frontend:** Create Payment Verification UI (list of pending payments).
-- [ ] **Frontend:** Display payment details (User, Amount, Method, Date, Ref ID, Link to Receipt).
-- [ ] **Frontend:** Provide "Verify" and "Reject" buttons for each pending payment.
-- [ ] **Backend:** API endpoint to verify/reject a payment (`/api/payments/:paymentId/verify`, `/api/payments/:paymentId/reject`).
-    - [ ] Update `payments` status.
-    - [ ] Record who verified (`verified_by_user_id`) and when (`verified_at`).
-    - [ ] **Crucial:** Trigger backend logic to update `weekly_contributions` status and `amount_paid` based on verified payment amount and allocation (using `payment_allocations` table).
-    - [ ] Trigger logic to update `loan_repayments` and `loans.total_amount_repaid` if payment was for a loan.
-- [ ] **Frontend:** Implement API calls for verify/reject actions.
-- [ ] **Frontend:** Update UI list upon action completion.
+- [x] **Backend:** API endpoint to get payments pending verification for the group (`/api/groups/:groupId/payments/pending`).
+- [x] **Frontend:** Create Payment Verification UI (list of pending payments).
+- [x] **Frontend:** Display payment details (User, Amount, Method, Date, Ref ID, Link to Receipt).
+- [x] **Frontend:** Provide "Verify" and "Reject" buttons for each pending payment.
+- [x] **Backend:** API endpoint to verify/reject a payment (`/api/payments/:paymentId/verify`, `/api/payments/:paymentId/reject`).
+    - [x] Update `payments` status.
+    - [x] Record who verified (`verified_by_user_id`) and when (`verified_at`).
+    - [x] **Crucial:** Trigger backend logic to update `weekly_contributions` status and `amount_paid` based on verified payment amount and allocation (using `payment_allocations` table).
+    - [x] Trigger logic to update `loan_repayments` and `loans.total_amount_repaid` if payment was for a loan.
+- [x] **Frontend:** Implement API calls for verify/reject actions.
+- [x] **Frontend:** Update UI list upon action completion.
 
 ### D. Expense Management
-- [ ] **Backend:** API endpoint to add an expense (`/api/groups/:groupId/expenses`).
-- [ ] **Backend:** API endpoint to get expenses for the group (`/api/groups/:groupId/expenses`).
-- [ ] **Frontend:** Create Expense Tracking UI (list expenses, form to add new).
-- [ ] **Frontend:** Form to input expense description, amount, date.
-- [ ] **Frontend:** Optional file upload for expense receipt.
-- [ ] **Frontend:** Implement API call to add expense.
-- [ ] **Frontend:** Display list of recorded expenses.
+- [x] **Backend:** API endpoint to add an expense (`/api/groups/:groupId/expenses`).
+- [x] **Backend:** API endpoint to get expenses for the group (`/api/groups/:groupId/expenses`).
+- [x] **Frontend:** Create Expense Tracking UI (list expenses, form to add new).
+- [x] **Frontend:** Form to input expense description, amount, date.
+- [x] **Frontend:** Optional file upload for expense receipt.
+- [x] **Frontend:** Implement API call to add expense.
+- [x] **Frontend:** Display list of recorded expenses.
 
 ### E. Loan Management (Approval & Tracking)
 - [ ] **Backend:** API endpoint to get pending intra-group loan requests (`/api/groups/:groupId/loans/pending/intra`).

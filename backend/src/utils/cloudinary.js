@@ -45,6 +45,16 @@ const formatProfilePicFilename = (lastName, date = new Date()) => {
   return `profile_${sanitizedLastName}_${formattedDate}`;
 };
 
+// Add this function for expense receipt filenames
+const generateExpenseReceiptFilename = (category, amount, quantity, unit, date = new Date()) => {
+  const formattedDate = formatDateForFilename(date); // MMDDYYYY_HHMMSS
+  const safeCategory = (category || 'Cat').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6);
+  const safeUnit = (unit || 'unit').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6);
+  const safeAmount = String(amount).replace(/[^0-9.]/g, '');
+  const safeQuantity = String(quantity).replace(/[^0-9.]/g, '');
+  return `ER_${safeCategory}${safeAmount}-${safeQuantity}${safeUnit}_${formattedDate}`;
+};
+
 /**
  * Upload a file to Cloudinary
  * @param {Object} file - The file object from multer
@@ -52,21 +62,18 @@ const formatProfilePicFilename = (lastName, date = new Date()) => {
  * @returns {Promise<Object>} - Cloudinary upload response
  */
 const uploadToCloudinary = async (file, metadata = {}) => {
-  // Try unsigned upload first as it's more reliable with your configuration
   try {
-    // Convert the buffer to base64
     const b64 = Buffer.from(file.buffer).toString('base64');
     const dataURI = `data:${file.mimetype};base64,${b64}`;
 
     let publicId;
-    if (metadata.profilePic && metadata.lastName) {
-      // Profile picture upload
+    if (metadata.expenseReceipt && metadata.category && metadata.amount && metadata.quantity && metadata.unit) {
+      publicId = `expenses/${generateExpenseReceiptFilename(metadata.category, metadata.amount, metadata.quantity, metadata.unit)}`;
+    } else if (metadata.profilePic && metadata.lastName) {
       publicId = `profile_pics/${formatProfilePicFilename(metadata.lastName)}`;
     } else if (metadata.lastName && metadata.paymentMethod) {
-      // Payment receipt upload
       publicId = `payments/${generateReceiptFilename(metadata.lastName, metadata.paymentMethod)}`;
     } else {
-      // Fallback
       publicId = `uploads/${Date.now()}`;
     }
 
@@ -75,7 +82,6 @@ const uploadToCloudinary = async (file, metadata = {}) => {
       resource_type: 'auto',
     };
 
-    // Upload to Cloudinary using the unsigned upload preset
     const result = await cloudinary.uploader.unsigned_upload(
       dataURI,
       'thesis_finance_receipts',
@@ -93,4 +99,5 @@ module.exports = {
   uploadToCloudinary,
   formatDateForFilename,
   formatProfilePicFilename,
+  generateExpenseReceiptFilename,
 }; 

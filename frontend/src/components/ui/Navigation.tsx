@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 // import Button from './Button';
 
@@ -12,13 +12,99 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ReactElement;
+  roles?: string[];
 }
+
+const TypewriterEffect: React.FC = () => {
+  const phrases = [
+    "made by mika",
+    "made w/ alt+3",
+    "kakomsai layf",
+    "gimme coffee",
+    "thesis mode on",
+    "sleep deprived",
+    "bug-free code",
+    "please work",
+    "ctrl+s for life",
+    "lorem ipsum",
+    "debugging marathon",
+    "push to main",
+    "merge conflicts",
+    "help me grok",
+    "late night coding",
+    "hydrate or isekai",
+    "commit early",
+    "reviewing PRs",
+    "unit test hero",
+    "refactor time",
+    "pull request",
+    "feature freeze",
+    "npm install",
+    "npm run dev",
+    "lowfi is life",
+    "Omae wa mou",
+    "syntax error",
+    "404 not found",
+    "console.log life",
+    "import caffeine",
+    "alt+tab master"
+  ];
+
+  const [currentText, setCurrentText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [typingSpeed, setTypingSpeed] = useState(150);
+  const [pauseEnd, setPauseEnd] = useState(false);
+
+  useEffect(() => {
+    const currentPhrase = phrases[phraseIndex];
+    let timer: number | undefined;
+
+    if (pauseEnd) {
+      // Pause at the end of the phrase for 5 seconds (reduced from 10)
+      timer = setTimeout(() => {
+        setPauseEnd(false);
+        setIsDeleting(true);
+      }, 5000);
+    } else if (isDeleting) {
+      // Delete characters
+      if (currentText === "") {
+        setIsDeleting(false);
+        setPhraseIndex((prev) => (prev + 1) % phrases.length);
+        setTypingSpeed(150); // Reset typing speed
+      } else {
+        timer = setTimeout(() => {
+          setCurrentText(currentText.slice(0, -1));
+          setTypingSpeed(50); // Faster when deleting
+        }, typingSpeed);
+      }
+    } else {
+      // Type characters
+      if (currentText === currentPhrase) {
+        setPauseEnd(true);
+      } else {
+        timer = setTimeout(() => {
+          setCurrentText(currentPhrase.slice(0, currentText.length + 1));
+        }, typingSpeed);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [currentText, isDeleting, phraseIndex, phrases, typingSpeed, pauseEnd]);
+
+  return (
+    <div className="italic text-xs text-gray-400 dark:text-gray-500 -mt-1 ml-0 min-w-[110px] h-4 text-left">
+      {currentText}
+      <span className="animate-pulse">_</span>
+    </div>
+  );
+};
 
 const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  // const navigate = useNavigate();
-
+  
+  // Get navigation items based on user role
   const getTreasurerNavItems = (): NavItem[] => [
   {
     name: 'Dashboard',
@@ -99,13 +185,24 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
       )
   },
   {
+    name: 'Loan Management',
+    href: '/loans',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+    roles: ['finance_coordinator']
+  },
+  {
     name: 'Expenses',
     href: '/expenses',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      )
+    ),
+    roles: ['finance_coordinator']
   },
   {
       name: 'Group Settings',
@@ -214,20 +311,24 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
            path !== '/admin';
   };
 
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
   return (
     <nav className="bg-white dark:bg-neutral-800 shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex">
-            <div className="flex-shrink-0 flex flex-col items-start justify-center">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 flex flex-col items-start justify-center mr-6">
               <span className="text-xl font-bold text-gray-900 dark:text-white">
-                CSBank
+                CS<span className="text-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.7)]">Bank</span>
               </span>
-              <span className="italic text-xs text-gray-400 dark:text-gray-500 -mt-1 ml-0">
-                made by mika.
-              </span>
+              <TypewriterEffect />
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
+            {/* Desktop Navigation */}
+            <div className="hidden lg:ml-6 lg:flex lg:space-x-4">
               {getNavItems().map((item) => (
                 <Link
                   key={item.name}
@@ -236,7 +337,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
                     isActive(item.href)
                       ? 'border-primary-500 text-gray-900 dark:text-white'
                       : 'border-transparent text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
-                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors`}
                 >
                   <span className="mr-2">{item.icon}</span>
                   {item.name}
@@ -245,15 +346,15 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             </div>
           </div>
 
-          {/* Profile and Logout Section */}
-          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
+          {/* Profile and Logout Section - Desktop */}
+          <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
             <Link
               to={`/profile`}
               className={`${
                 location.pathname === '/profile'
                   ? 'text-gray-900 dark:text-white'
                   : 'text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200'
-              } flex items-center text-sm font-medium`}
+              } flex items-center text-sm font-medium transition-colors`}
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -262,7 +363,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             </Link>
             <button
               onClick={onLogout}
-              className="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 flex items-center text-sm font-medium"
+              className="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 flex items-center text-sm font-medium transition-colors"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -271,53 +372,52 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             </button>
           </div>
             
-            {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
-              <button
+          {/* Mobile menu button */}
+          <div className="flex items-center lg:hidden">
+            <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-700"
-              >
-                <span className="sr-only">Open main menu</span>
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-700 focus:outline-none transition-colors"
+              aria-expanded={isOpen}
+            >
+              <span className="sr-only">{isOpen ? 'Close menu' : 'Open menu'}</span>
               {isOpen ? (
-                <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </button>
+                <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Mobile menu */}
-      <div className={`${isOpen ? 'block' : 'hidden'} sm:hidden`}>
-          <div className="pt-2 pb-3 space-y-1">
+      <div className={`${isOpen ? 'block' : 'hidden'} lg:hidden transition-all duration-200 ease-in-out`}>
+        <div className="pt-2 pb-3 space-y-1">
           {getNavItems().map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
+            <Link
+              key={item.name}
+              to={item.href}
               className={`${
                 isActive(item.href)
                   ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-400'
                   : 'border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700'
-              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center`}
-              onClick={() => setIsOpen(false)}
-              >
+              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors`}
+            >
               <span className="mr-2">{item.icon}</span>
-                {item.name}
-              </Link>
-            ))}
+              {item.name}
+            </Link>
+          ))}
           <Link
             to={`/profile`}
             className={`${
               location.pathname === '/profile'
                 ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-400'
                 : 'border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700'
-            } block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center`}
-            onClick={() => setIsOpen(false)}
+            } block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors`}
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -325,11 +425,8 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             Profile
           </Link>
           <button
-            onClick={() => {
-              setIsOpen(false);
-              onLogout();
-            }}
-            className="w-full border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center"
+            onClick={onLogout}
+            className="w-full border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

@@ -173,6 +173,53 @@ const submitPayment = async (req, res) => {
 };
 
 /**
+ * Reject a payment (Finance Coordinator only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const rejectPayment = async (req, res) => {
+  const { paymentId } = req.params;
+  const { notes } = req.body;
+  const verifierId = req.user.userId;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // Update payment status to rejected
+      const paymentResult = await client.query(`
+        UPDATE payments
+        SET status = 'rejected',
+            verified_at = CURRENT_TIMESTAMP,
+            verified_by_user_id = $1,
+            notes = $2
+        WHERE id = $3
+        RETURNING id
+      `, [verifierId, notes, paymentId]);
+      if (paymentResult.rows.length === 0) {
+        throw new Error('Payment not found');
+      }
+      await client.query('COMMIT');
+      res.json({
+        success: true,
+        message: 'Payment rejected',
+        data: { paymentId, status: 'rejected' }
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Payment rejection error:', err);
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+};
+
+/**
  * Verify a payment (Finance Coordinator only)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -196,7 +243,7 @@ const verifyPayment = async (req, res) => {
             verified_by_user_id = $2,
             notes = $3
         WHERE id = $4
-        RETURNING user_id, group_id, amount
+        RETURNING user_id, group_id, amount, purpose
       `, [status, verifierId, notes, paymentId]);
 
       if (paymentResult.rows.length === 0) {
@@ -206,26 +253,62 @@ const verifyPayment = async (req, res) => {
       const payment = paymentResult.rows[0];
 
       if (status === 'verified') {
-        // Update contribution status
-        await client.query(`
-          UPDATE weekly_contributions wc
-          SET status = 'paid',
-              amount_paid = amount_paid + pa.amount_allocated
+        // Get all allocations for this payment
+        const allocationsResult = await client.query(`
+          SELECT pa.contribution_id, pa.amount_allocated
           FROM payment_allocations pa
           WHERE pa.payment_id = $1
-          AND pa.contribution_id = wc.id
         `, [paymentId]);
+        for (const alloc of allocationsResult.rows) {
+          // Update amount_paid for the contribution
+          await client.query(`
+            UPDATE weekly_contributions
+            SET amount_paid = amount_paid + $1
+            WHERE id = $2
+          `, [alloc.amount_allocated, alloc.contribution_id]);
+          // Check if fully paid
+          const contribResult = await client.query(`
+            SELECT base_contribution_due, penalty_applied, amount_paid
+            FROM weekly_contributions
+            WHERE id = $1
+          `, [alloc.contribution_id]);
+          if (contribResult.rows.length) {
+            const c = contribResult.rows[0];
+            const totalDue = parseFloat(c.base_contribution_due) + parseFloat(c.penalty_applied);
+            if (parseFloat(c.amount_paid) >= totalDue) {
+              await client.query(`
+                UPDATE weekly_contributions
+                SET status = 'paid'
+                WHERE id = $1
+              `, [alloc.contribution_id]);
+            }
+          }
+        }
+        // If payment is for a loan, update loan_repayments and loans.total_amount_repaid
+        if (payment.purpose && payment.purpose.toLowerCase().includes('loan')) {
+          // Find loan ID from purpose string (e.g., 'Loan Repayment ID 12')
+          const match = payment.purpose.match(/loan repayment id (\d+)/i);
+          if (match) {
+            const loanId = parseInt(match[1]);
+            // Insert loan repayment record
+            await client.query(`
+              INSERT INTO loan_repayments (loan_id, payment_id, amount, repayment_date, recorded_by_user_id)
+              VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)
+            `, [loanId, paymentId, payment.amount, verifierId]);
+            // Update total_amount_repaid in loans
+            await client.query(`
+              UPDATE loans
+              SET total_amount_repaid = COALESCE(total_amount_repaid, 0) + $1
+              WHERE id = $2
+            `, [payment.amount, loanId]);
+          }
+        }
       }
-
       await client.query('COMMIT');
-
       res.json({
         success: true,
         message: `Payment ${status}`,
-        data: {
-          paymentId,
-          status
-        }
+        data: { paymentId, status }
       });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -244,5 +327,6 @@ const verifyPayment = async (req, res) => {
 
 module.exports = {
   submitPayment,
-  verifyPayment
+  verifyPayment,
+  rejectPayment
 }; 

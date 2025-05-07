@@ -1,10 +1,10 @@
 import { useState } from 'react';
 // import { useNavigate } from 'react-router-dom';
-import { getApiUrl } from '../utils/api';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import { useToast } from '../context/ToastContext';
+import { getApiUrl } from '../../utils/api';
+import Card from '../ui/Card';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import { useToast } from '../../context/ToastContext';
 
 const JoinGroupStep = () => {
   const [groupCode, setGroupCode] = useState('');

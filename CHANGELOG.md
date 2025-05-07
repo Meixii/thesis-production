@@ -3,6 +3,105 @@
 ## Backend 
 (Always make the recent update ascending after this)
 
+Update #51
+- Implemented comprehensive Loan Management for Finance Coordinators:
+  - Added API endpoints for retrieving pending intra-group and inter-group loans
+  - Created `/api/groups/:groupId/loans/pending/intra` endpoint for FC to view student loan requests
+  - Created `/api/groups/:groupId/loans/pending/inter/incoming` endpoint for FC to view inter-group requests
+  - Implemented `/api/loans/:loanId/approve` endpoint with transaction support
+  - Implemented `/api/loans/:loanId/reject` endpoint with rejection reason handling
+  - Added `/api/loans/approved` endpoint to view loans ready for disbursement
+  - Enhanced authentication with role-based access control
+  - Implemented comprehensive error handling and validation
+  - Added proper transaction support for all loan operations
+  - Enhanced group-specific loan management for Finance Coordinators
+
+Update #50
+- Added Loan Management for Finance Coordinators:
+  - Implemented comprehensive interface for managing intra-group and inter-group loans
+  - Created tabbed UI with pending intra-group requests, pending inter-group requests, approved loans, and request inter-group loan sections
+  - Added loan approval/rejection functionality with confirmation
+  - Designed dedicated loan disbursement page with receipt upload support
+  - Included reference ID and notes fields for better loan tracking
+  - Added fallback to mock data for development and testing
+  - Enhanced Navigation with dedicated Loan Management link
+  - Implemented proper routing with protected routes
+
+Update #49
+- Fixed Navigation Responsiveness for Medium-Sized Devices:
+  - Replaced complex screen size state management with simpler Tailwind breakpoints
+  - Changed breakpoint from 'md' to 'lg' to properly display navigation on medium screens
+  - Removed unnecessary resize listener to improve performance
+  - Simplified conditional rendering logic for mobile/desktop navigation
+  - Added clear semantic comments for better code maintainability
+
+Update #48
+- Enhanced UI Responsiveness:
+  - Improved Navigation component to handle medium-sized devices (below 1000px)
+  - Added custom breakpoint system for better mobile-to-desktop transitions
+  - Fixed mobile menu display and transitions with proper aria attributes
+  - Added responsive state management with window resize listener
+  - Improved transition effects for better user experience
+
+Update #47
+- Enhanced Expense Management for Finance Coordinators (FCs):
+  - Expanded `expenses` table and API to support new fields: category, quantity, unit, type, status, updated_at
+  - Added PATCH and DELETE endpoints for editing and deleting expenses
+  - Implemented custom Cloudinary filenames for receipts: `ER_<Category><Amount>-<Quantity><Unit>_<date>_<time>.jpg`
+  - Improved CORS configuration to support PATCH requests
+  - Fixed ReferenceError for Cloudinary upload utility in controllers
+- Frontend:
+  - Enhanced Expense tracking UI with edit/delete modalities and confirmation dialogs
+  - Added receipt image modal viewer for better user experience
+  - Implemented status badges with appropriate colors
+  - Improved expense summary cards with more statistics and consistent grid layouts
+  - Fixed FCDashboard to properly display real data from the API
+
+Update #46
+- Implemented Expense Management feature for Finance Coordinators (FCs):
+  - Added endpoints `/api/groups/:groupId/expenses` for adding and fetching expenses
+  - Support for expense categories, receipt uploads, and filtering by date/category
+  - Robust transaction handling and role-based access control
+- Frontend:
+  - Created `Expenses.tsx` page with modern UI for expense tracking
+  - Added summary cards showing total expenses, records count, and category breakdown
+  - Implemented filtering by category and date range
+  - Added form for adding new expenses with receipt upload support
+  - Added expense list with detailed view and receipt preview
+  - Updated navigation to include Expenses link for FCs
+
+Update #45
+- Implemented Payment Verification feature for Finance Coordinators (FCs):
+  - Added endpoint `/api/groups/:groupId/payments/pending` to fetch all payments pending verification for a group (FC only)
+  - Implemented `/api/payments/:paymentId/verify` and `/api/payments/:paymentId/reject` endpoints for FCs to verify or reject payments
+  - Robust transaction handling, updates to `weekly_contributions`, `payment_allocations`, and `loan_repayments` as needed
+  - Ensured proper role-based access control and error handling throughout
+- Frontend:
+  - Added `VerifyPayments.tsx` page for FCs to view, verify, and reject pending payments
+  - Displays all relevant payment details (user, amount, method, date, ref ID, receipt)
+  - Robust UI for loading, empty, and error states
+  - Integrated with backend endpoints for real-time updates
+
+Update #44
+- Fixed Member Detail API endpoint issues:
+  - Corrected SQL queries in getUserContributions to use EXTRACT(WEEK FROM week_start_date) instead of non-existent week_number column
+  - Updated getGroupDashboard function to use the same week extraction approach
+  - Fixed sorting of weekly contributions to use week_start_date instead of week_number
+  - Added proper type conversion for week_number data to ensure consistent integer values
+  - Resolved 500 server error when viewing member details
+  - Improved data consistency between dashboard and member detail views
+
+Update #43
+- Checked Member Management Features for Finance Coordinators:
+  - Verified API endpoint for group members list (/api/groups/:groupId/members)
+  - Verified API endpoint for detailed member contributions (/api/groups/users/:userId/contributions)
+  - Confirmed filtering, sorting, and search functionality for members
+  - Validated member detail view with contributions, payments, and loans tabs
+  - Ensured proper data display for total contributed, balance due, and active loans
+  - Verified data visualization with color-coded status badges
+  - Added comprehensive testing for Finance Coordinator member management
+  - Confirmed role-based access control for member data
+
 Update #42
 - Fixed Email Verification Resend Functionality:
   - Modified resendVerificationEmail endpoint to accept email in request body
@@ -426,8 +525,73 @@ Update #1
 (Do not put any recent updates below here)
 ---
 PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
+
 ## Frontend
 (Always make the recent update ASECENDING after this)
+
+Update #76
+- Enhanced Loan Management with improved UI and error handling:
+  - Added confirmation modals for loan approvals and rejections
+  - Implemented specific backend error message display
+  - Fixed balance calculation for loan approvals
+  - Added refresh button with loading indicator
+  - Improved error handling for API failures
+  - Enhanced UI with better button styling and spacing
+  - Added comprehensive validation for loan operations
+  - Implemented responsive confirmation dialogs for critical actions
+  - Fixed layout issues with consistent styling
+  - Added detailed error messages for insufficient balance
+
+Update #75
+- Fixed navigation layout shifting during typing animation:
+  - Added fixed width container to TypewriterEffect component
+  - Implemented min-width and height constraints to maintain layout stability
+  - Added proper margin between logo and navigation items
+  - Improved flex layout for consistent spacing
+  - Enhanced container structure for better responsiveness
+  - Ensured explicit left alignment of typing text
+  - Reduced typing animation pause time from 10 to 5 seconds for better UX
+
+Update #74
+- Added animated typing effect to CSBank logo tagline:
+  - Implemented TypewriterEffect component with randomized text phrases
+  - Added smooth typing and erasing animations with cursor blinking
+  - Includes 10 seconds pause between phrases for readability
+  - Created 10 different taglines that cycle randomly
+  - Enhanced branding with dynamic, engaging text
+  - Added proper typewriter cursor animation with pulse effect
+  - Maintains consistent styling with the rest of the application
+
+Update #73
+- Fixed MemberDetail component rendering issue:
+  - Added null checks for loan amounts to prevent "Cannot read properties of null (reading 'toFixed')" error
+  - Implemented more resilient data display with proper fallback values
+  - Improved handling of pending loan requests where amount may be null
+  - Enhanced UI labels to show 'Pending' for unapproved loan amounts
+
+Update #72
+- Enhanced Member Management UI for Finance Coordinators:
+  - Improved cell alignment to be consistently left-aligned for better readability
+  - Enhanced hover effects for table rows with smooth transitions
+  - Added a dedicated refresh button for real-time data updates
+  - Enhanced View Details button with improved styling and visual feedback
+  - Added loading/refreshing states with visual indicators
+  - Improved error handling and user feedback for API issues
+  - Added retry options on error states
+  - Added responsive UI improvements for better mobile experience
+  - Fixed MemberDetail view with better navigation and data refreshing
+
+Update #71
+- Verified and Enhanced Finance Coordinator Member Management Features:
+  - Validated API endpoints for group members (/api/groups/:groupId/members) and member details (/api/groups/users/:userId/contributions)
+  - Improved error handling with more specific error messages and better user feedback
+  - Added validation for API response data structure to prevent runtime errors
+  - Enhanced loading states with more descriptive messages
+  - Added proper handling for empty member lists
+  - Improved user experience with retry options on error states
+  - Added detailed validation for member data to ensure data integrity
+  - Fixed navigation between member list and detail views
+  - Enhanced member financial status display with proper formatting
 
 Update #70
 - Fixed Email Verification Resend in VerifyEmailInfo Component:

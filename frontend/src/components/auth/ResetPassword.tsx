@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { getApiUrl } from '../utils/api';
-import { useToast } from '../context/ToastContext';
+import Card from '../ui/Card';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+import { getApiUrl } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 
 export default function ResetPassword() {
   const { token } = useParams<{ token: string }>();

@@ -256,8 +256,297 @@ const getUserLoans = async (req, res) => {
   }
 };
 
+/**
+ * Approve a loan request
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const approveLoan = async (req, res) => {
+  const userId = req.user.userId;
+  const loanId = req.params.loanId;
+
+  try {
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Get loan details
+      const loanResult = await client.query(`
+        SELECT l.*
+        FROM loans l
+        WHERE l.id = $1
+      `, [loanId]);
+
+      if (!loanResult.rows.length) {
+        throw new Error('Loan not found');
+      }
+
+      const loan = loanResult.rows[0];
+
+      // Check if user is finance coordinator of the providing group
+      const userResult = await client.query(`
+        SELECT role, group_id
+        FROM users
+        WHERE id = $1
+      `, [userId]);
+
+      if (!userResult.rows.length) {
+        throw new Error('User not found');
+      }
+
+      const user = userResult.rows[0];
+
+      if (user.role !== 'finance_coordinator' || user.group_id !== loan.providing_group_id) {
+        throw new Error('Only the finance coordinator of the providing group can approve loans');
+      }
+
+      // Check if loan is in requested status
+      if (loan.status !== 'requested') {
+        throw new Error(`Cannot approve a loan that is already ${loan.status}`);
+      }
+
+      // Get group balance by calculating available funds
+      const fundsResult = await client.query(`
+        SELECT 
+          COALESCE(SUM(p.amount), 0) as total_collected,
+          COALESCE((SELECT SUM(amount) FROM expenses WHERE group_id = $1), 0) as total_expenses,
+          COALESCE((SELECT SUM(amount_approved) FROM loans WHERE providing_group_id = $1 AND status IN ('disbursed', 'partially_repaid')), 0) as total_loans_out,
+          COALESCE((SELECT SUM(total_amount_repaid) FROM loans WHERE providing_group_id = $1), 0) as total_repaid
+        FROM payments p
+        JOIN users u ON p.user_id = u.id
+        WHERE u.group_id = $1 AND p.status = 'verified'
+      `, [loan.providing_group_id]);
+
+      const funds = fundsResult.rows[0];
+      const totalCollected = parseFloat(funds.total_collected);
+      const totalExpenses = parseFloat(funds.total_expenses);
+      const totalLoansOut = parseFloat(funds.total_loans_out);
+      const totalRepaid = parseFloat(funds.total_repaid);
+      
+      const availableBalance = totalCollected - totalExpenses - (totalLoansOut - totalRepaid);
+      const loanAmount = parseFloat(loan.amount_requested);
+
+      if (loanAmount > availableBalance) {
+        throw new Error(`Your group does not have enough balance (${availableBalance.toFixed(2)}) to approve this loan request (${loanAmount.toFixed(2)})`);
+      }
+
+      // Update loan status
+      await client.query(`
+        UPDATE loans
+        SET 
+          status = 'approved',
+          amount_approved = amount_requested,
+          approved_by_user_id = $1,
+          approval_date = NOW()
+        WHERE id = $2
+      `, [userId, loanId]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Loan approved successfully',
+        data: {
+          loanId,
+          status: 'approved'
+        }
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Loan approval error:', err);
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Reject a loan request
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const rejectLoan = async (req, res) => {
+  const userId = req.user.userId;
+  const loanId = req.params.loanId;
+  const { rejectionReason } = req.body;
+
+  try {
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Get loan details
+      const loanResult = await client.query(`
+        SELECT l.*
+        FROM loans l
+        WHERE l.id = $1
+      `, [loanId]);
+
+      if (!loanResult.rows.length) {
+        throw new Error('Loan not found');
+      }
+
+      const loan = loanResult.rows[0];
+
+      // Check if user is finance coordinator of the providing group
+      const userResult = await client.query(`
+        SELECT role, group_id
+        FROM users
+        WHERE id = $1
+      `, [userId]);
+
+      if (!userResult.rows.length) {
+        throw new Error('User not found');
+      }
+
+      const user = userResult.rows[0];
+
+      if (user.role !== 'finance_coordinator' || user.group_id !== loan.providing_group_id) {
+        throw new Error('Only the finance coordinator of the providing group can reject loans');
+      }
+
+      // Check if loan is in requested status
+      if (loan.status !== 'requested') {
+        throw new Error(`Cannot reject a loan that is already ${loan.status}`);
+      }
+
+      // Check if rejection_reason column exists
+      const columnsResult = await client.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'loans' AND column_name = 'notes'
+      `);
+      
+      // Update loan status
+      if (columnsResult.rows.length > 0) {
+        // Use 'notes' column if available
+        await client.query(`
+          UPDATE loans
+          SET 
+            status = 'rejected',
+            notes = $1,
+            rejection_date = NOW()
+          WHERE id = $2
+        `, [rejectionReason || 'No reason provided', loanId]);
+      } else {
+        // Just update status if no notes/rejection_reason column
+        await client.query(`
+          UPDATE loans
+          SET 
+            status = 'rejected',
+            rejection_date = NOW()
+          WHERE id = $1
+        `, [loanId]);
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Loan rejected successfully',
+        data: {
+          loanId,
+          status: 'rejected'
+        }
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Loan rejection error:', err);
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Get loans approved and pending disbursement
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getApprovedLoans = async (req, res) => {
+  const userId = req.user.userId;
+
+  try {
+    // Get user's group
+    const userResult = await db.query(`
+      SELECT group_id, role
+      FROM users
+      WHERE id = $1
+    `, [userId]);
+
+    if (!userResult.rows.length) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.role !== 'finance_coordinator' && user.role !== 'treasurer') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only finance coordinator or treasurer can view approved loans'
+      });
+    }
+
+    // Get approved loans for user's group
+    const loansResult = await db.query(`
+      SELECT 
+        l.id,
+        l.loan_type,
+        l.requesting_user_id,
+        CONCAT(ru.first_name, ' ', ru.last_name) as requesting_user_name,
+        l.requesting_group_id,
+        rg.group_name as requesting_group_name,
+        l.providing_group_id,
+        pg.group_name as providing_group_name,
+        l.amount_approved,
+        l.fee_applied,
+        l.status,
+        l.approval_date,
+        l.due_date
+      FROM loans l
+      JOIN users ru ON l.requesting_user_id = ru.id
+      JOIN groups rg ON l.requesting_group_id = rg.id
+      JOIN groups pg ON l.providing_group_id = pg.id
+      WHERE l.providing_group_id = $1
+      AND l.status = 'approved'
+      ORDER BY l.approval_date DESC
+    `, [user.group_id]);
+
+    res.json({
+      success: true,
+      loans: loansResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching approved loans:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch approved loans'
+    });
+  }
+};
+
 module.exports = {
   requestIntraLoan,
   getLoanById,
-  getUserLoans
+  getUserLoans,
+  approveLoan,
+  rejectLoan,
+  getApprovedLoans
 }; 

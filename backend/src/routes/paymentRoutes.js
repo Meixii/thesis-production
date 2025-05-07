@@ -34,4 +34,11 @@ router.post('/:paymentId/verify',
   verifyPayment
 );
 
+// Reject payment route (Finance Coordinator only)
+router.post('/:paymentId/reject',
+  authenticateToken,
+  isFinanceCoordinator,
+  require('../controllers/paymentController').rejectPayment
+);
+
 module.exports = router; 

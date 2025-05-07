@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getApiUrl } from '../utils/api';
-import Navigation from '../components/ui/Navigation';
-import { useToast } from '../context/ToastContext';
+import { getApiUrl } from '../../utils/api';
+import Navigation from '../ui/Navigation';
+import { useToast } from '../../context/ToastContext';
 
 interface Member {
   id: number;
@@ -27,57 +27,82 @@ const Members: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
-        if (!token) {
-          navigate('/login');
-          return;
-        }
-
-        // Fetch current user to get group ID
-        const userResponse = await fetch(getApiUrl('/api/auth/profile'), {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!userResponse.ok) {
-          throw new Error('Failed to fetch user profile');
-        }
-
-        const userData = await userResponse.json();
-        const groupId = userData.groupId;
-
-        // Make sure we have a valid group ID
-        if (!groupId) {
-          throw new Error('No group assigned. Please contact your administrator.');
-        }
-
-        // Fetch group members
-        const membersResponse = await fetch(getApiUrl(`/api/groups/${groupId}/members`), {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!membersResponse.ok) {
-          throw new Error('Failed to fetch group members');
-        }
-
-        const membersData = await membersResponse.json();
-        setMembers(membersData.members);
-        setFilteredMembers(membersData.members);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        showToast(err instanceof Error ? err.message : 'Failed to load members', 'error');
-      } finally {
-        setLoading(false);
+  const fetchMembers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
       }
-    };
 
+      // Fetch current user to get group ID
+      const userResponse = await fetch(getApiUrl('/api/auth/profile'), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!userResponse.ok) {
+        const errorData = await userResponse.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to fetch user profile (${userResponse.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const userData = await userResponse.json();
+      const groupId = userData.groupId;
+
+      // Make sure we have a valid group ID
+      if (!groupId) {
+        throw new Error('No group assigned. Please contact your administrator.');
+      }
+
+      // Fetch group members
+      const membersResponse = await fetch(getApiUrl(`/api/groups/${groupId}/members`), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!membersResponse.ok) {
+        const errorData = await membersResponse.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to fetch group members (${membersResponse.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const membersData = await membersResponse.json();
+      
+      if (!membersData.members || !Array.isArray(membersData.members)) {
+        throw new Error('Invalid response format: members data is missing or not an array');
+      }
+      
+      if (membersData.members.length === 0) {
+        showToast('No members found in this group. The group may be empty.', 'info');
+      }
+      
+      // Validate member data structure to avoid runtime errors
+      membersData.members.forEach((member: any, index: number) => {
+        if (!member.id || !member.name || member.email === undefined) {
+          console.warn(`Member at index ${index} has invalid data structure:`, member);
+        }
+      });
+      
+      setMembers(membersData.members);
+      setFilteredMembers(membersData.members);
+      showToast('Member data refreshed successfully', 'success');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      console.error('Error fetching members:', errorMessage);
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchMembers();
   }, [navigate, showToast]);
 
@@ -128,6 +153,10 @@ const Members: React.FC = () => {
     }
   };
 
+  const handleViewMemberDetails = (memberId: number) => {
+    navigate(`/members/${memberId}`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
@@ -146,11 +175,29 @@ const Members: React.FC = () => {
       <Navigation userRole="finance_coordinator" onLogout={() => {}} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold">Group Members</h2>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-            Manage and view the status of all members in your group
-          </p>
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-semibold">Group Members</h2>
+            <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+              Manage and view the status of all members in your group
+            </p>
+          </div>
+          <button
+            onClick={fetchMembers}
+            disabled={loading}
+            className="flex items-center px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {loading ? 'Refreshing...' : 'Refresh Data'}
+          </button>
         </div>
 
         <div className="mb-6 bg-white dark:bg-neutral-800 shadow-sm rounded-lg p-6">
@@ -203,12 +250,21 @@ const Members: React.FC = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary-600"></div>
+            <div className="flex flex-col justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary-600 mb-4"></div>
+              <p className="text-neutral-600 dark:text-neutral-400">Loading group members data...</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">This may take a moment to retrieve all member information</p>
             </div>
           ) : error ? (
             <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400 p-4 rounded-md">
-              {error}
+              <p className="font-semibold mb-1">Error loading members:</p>
+              <p>{error}</p>
+              <button 
+                onClick={fetchMembers} 
+                className="mt-2 px-3 py-1 text-sm bg-red-100 dark:bg-red-800/20 text-red-800 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-700/20 transition-colors duration-200"
+              >
+                Try Again
+              </button>
             </div>
           ) : (
             <>
@@ -286,16 +342,19 @@ const Members: React.FC = () => {
                           )}
                         </div>
                       </th>
-                      <th scope="col" className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                        Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
                     {filteredMembers.length > 0 ? (
                       filteredMembers.map((member) => (
-                        <tr key={member.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-750">
-                          <td className="px-6 py-4 whitespace-nowrap">
+                        <tr 
+                          key={member.id} 
+                          className="hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-150"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-left">
                             <div className="flex items-center">
                               <div>
                                 <div className="text-sm font-medium text-neutral-900 dark:text-white">
@@ -312,25 +371,35 @@ const Members: React.FC = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap text-left">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(member.current_week_status)}`}>
                               {member.current_week_status.charAt(0).toUpperCase() + member.current_week_status.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white text-left">
                             ₱{member.total_contributed.toFixed(2)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white text-left">
                             ₱{member.total_balance.toFixed(2)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white text-left">
                             ₱{member.active_loan_amount.toFixed(2)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <td className="px-6 py-4 whitespace-nowrap text-left">
                             <button
-                              onClick={() => navigate(`/members/${member.id}`)}
-                              className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300"
+                              onClick={() => handleViewMemberDetails(member.id)}
+                              className="inline-flex items-center px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded hover:bg-primary-100 dark:hover:bg-primary-800/30 transition-colors duration-200"
                             >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className="h-4 w-4 mr-1" 
+                                fill="none" 
+                                viewBox="0 0 24 24" 
+                                stroke="currentColor"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
                               View Details
                             </button>
                           </td>

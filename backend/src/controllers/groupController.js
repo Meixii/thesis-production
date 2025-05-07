@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 const createGroup = async (req, res) => {
   try {
@@ -170,7 +171,7 @@ const getGroupDashboard = async (req, res) => {
     const unpaidCountResult = await db.query(
       `SELECT COUNT(DISTINCT u.id) as unpaid_count
        FROM users u
-       LEFT JOIN weekly_contributions wc ON u.id = wc.user_id AND wc.week_number = $1
+       LEFT JOIN weekly_contributions wc ON u.id = wc.user_id AND EXTRACT(WEEK FROM wc.week_start_date) = $1
        WHERE u.group_id = $2 
        AND (wc.status = 'unpaid' OR wc.status = 'late' OR wc.id IS NULL)`,
       [currentWeek, groupId]
@@ -217,15 +218,15 @@ const getGroupDashboard = async (req, res) => {
     // Get weekly collection data for visualization
     const weeklyCollectionsResult = await db.query(
       `SELECT 
-         wc.week_number,
+         EXTRACT(WEEK FROM wc.week_start_date) as week_number,
          COUNT(CASE WHEN wc.status = 'paid' THEN 1 END) as paid_count,
          COUNT(CASE WHEN wc.status IN ('unpaid', 'late') THEN 1 END) as unpaid_count,
          SUM(CASE WHEN wc.status = 'paid' THEN wc.amount_paid ELSE 0 END) as collected_amount
        FROM weekly_contributions wc
        JOIN users u ON wc.user_id = u.id
        WHERE u.group_id = $1
-       GROUP BY wc.week_number
-       ORDER BY wc.week_number
+       GROUP BY EXTRACT(WEEK FROM wc.week_start_date)
+       ORDER BY EXTRACT(WEEK FROM wc.week_start_date)
        LIMIT 10`,
       [groupId]
     );
@@ -233,11 +234,11 @@ const getGroupDashboard = async (req, res) => {
     // Get expense categories for visualization
     const expenseCategoriesResult = await db.query(
       `SELECT 
-         category,
+         COALESCE(description, 'Uncategorized') as category,
          SUM(amount) as total_amount
        FROM expenses
        WHERE group_id = $1
-       GROUP BY category
+       GROUP BY description
        ORDER BY total_amount DESC`,
       [groupId]
     );
@@ -256,7 +257,10 @@ const getGroupDashboard = async (req, res) => {
         budget_progress: (availableBalance / parseFloat(group.budget_goal) * 100) || 0
       },
       visualizations: {
-        weekly_collections: weeklyCollectionsResult.rows,
+        weekly_collections: weeklyCollectionsResult.rows.map(row => ({
+          ...row,
+          week_number: parseInt(row.week_number)
+        })),
         expense_categories: expenseCategoriesResult.rows
       }
     });
@@ -560,7 +564,7 @@ const getUserContributions = async (req, res) => {
     const contributionsResult = await db.query(
       `SELECT 
          wc.id,
-         wc.week_number,
+         EXTRACT(WEEK FROM wc.week_start_date) as week_number,
          wc.week_start_date,
          wc.status,
          wc.base_contribution_due,
@@ -569,7 +573,7 @@ const getUserContributions = async (req, res) => {
          wc.updated_at
        FROM weekly_contributions wc
        WHERE wc.user_id = $1
-       ORDER BY wc.week_number DESC`,
+       ORDER BY wc.week_start_date DESC`,
       [userId]
     );
     
@@ -621,7 +625,7 @@ const getUserContributions = async (req, res) => {
       },
       contributions: contributionsResult.rows.map(contribution => ({
         id: contribution.id,
-        week_number: contribution.week_number,
+        week_number: parseInt(contribution.week_number || 0),
         week_start_date: contribution.week_start_date,
         status: contribution.status,
         base_amount: parseFloat(contribution.base_contribution_due),
@@ -660,6 +664,522 @@ const getUserContributions = async (req, res) => {
   }
 };
 
+/**
+ * Get all payments pending verification for a group (Finance Coordinator only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getPendingPaymentsForGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can access pending payments' });
+    }
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only access your own group\'s payments' });
+    }
+    // Fetch all payments with status 'pending_verification' for users in the group
+    const result = await db.query(
+      `SELECT 
+         p.id as payment_id,
+         CONCAT(u.first_name, ' ', u.last_name) as user_name,
+         u.email as user_email,
+         p.amount,
+         p.method,
+         p.status,
+         p.reference_id,
+         p.receipt_url,
+         p.created_at
+       FROM payments p
+       JOIN users u ON p.user_id = u.id
+       WHERE u.group_id = $1 AND p.status = 'pending_verification'
+       ORDER BY p.created_at ASC`,
+      [groupId]
+    );
+    res.json({
+      group_id: groupId,
+      payments: result.rows
+    });
+  } catch (error) {
+    console.error('Get pending payments for group error:', error);
+    res.status(500).json({ error: 'Server error while fetching pending payments' });
+  }
+};
+
+/**
+ * Add a new expense for a group (Finance Coordinator only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const addExpense = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { description, category, amount, quantity, unit, type, status, expense_date } = req.body;
+    const receiptFile = req.file;
+
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can add expenses' });
+    }
+
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only add expenses to your own group' });
+    }
+
+    // Upload receipt if provided
+    let receiptUrl = null;
+    if (receiptFile) {
+      try {
+        const uploadResult = await uploadToCloudinary(receiptFile, {
+          expenseReceipt: true,
+          category,
+          amount,
+          quantity: quantity || 1,
+          unit: unit || 'pcs'
+        });
+        receiptUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        console.error('Receipt upload failed:', uploadError);
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('Continuing expense creation without receipt image');
+        } else {
+          throw new Error('Receipt upload failed: ' + uploadError.message);
+        }
+      }
+    }
+
+    // Create expense record
+    const result = await db.query(
+      `INSERT INTO expenses (
+        group_id,
+        recorded_by_user_id,
+        description,
+        category,
+        amount,
+        quantity,
+        unit,
+        type,
+        status,
+        expense_date,
+        receipt_url,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id, description, category, amount, quantity, unit, type, status, expense_date, receipt_url, created_at, updated_at`,
+      [
+        groupId,
+        req.user.userId,
+        description,
+        category,
+        amount,
+        quantity || 1,
+        unit || 'pcs',
+        type || 'actual',
+        status || 'planned',
+        expense_date || new Date(),
+        receiptUrl
+      ]
+    );
+
+    res.status(201).json({
+      message: 'Expense added successfully',
+      expense: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Add expense error:', error);
+    res.status(500).json({ error: 'Server error while adding expense' });
+  }
+};
+
+/**
+ * Update an expense (Finance Coordinator only)
+ */
+const updateExpense = async (req, res) => {
+  try {
+    const { groupId, expenseId } = req.params;
+    const { description, category, amount, quantity, unit, type, status, expense_date } = req.body;
+    const receiptFile = req.file;
+
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can edit expenses' });
+    }
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only edit expenses in your own group' });
+    }
+
+    // Build update query
+    let updateFields = [];
+    let updateValues = [];
+    let idx = 1;
+    if (description !== undefined) { updateFields.push(`description = $${idx++}`); updateValues.push(description); }
+    if (category !== undefined) { updateFields.push(`category = $${idx++}`); updateValues.push(category); }
+    if (amount !== undefined) { updateFields.push(`amount = $${idx++}`); updateValues.push(amount); }
+    if (quantity !== undefined) { updateFields.push(`quantity = $${idx++}`); updateValues.push(quantity); }
+    if (unit !== undefined) { updateFields.push(`unit = $${idx++}`); updateValues.push(unit); }
+    if (type !== undefined) { updateFields.push(`type = $${idx++}`); updateValues.push(type); }
+    if (status !== undefined) { updateFields.push(`status = $${idx++}`); updateValues.push(status); }
+    if (expense_date !== undefined) { updateFields.push(`expense_date = $${idx++}`); updateValues.push(expense_date); }
+
+    // Handle receipt upload
+    let receiptUrl = null;
+    if (receiptFile) {
+      try {
+        const uploadResult = await uploadToCloudinary(receiptFile, {
+          expenseReceipt: true,
+          category,
+          amount,
+          quantity: quantity || 1,
+          unit: unit || 'pcs'
+        });
+        receiptUrl = uploadResult.secure_url;
+        updateFields.push(`receipt_url = $${idx++}`);
+        updateValues.push(receiptUrl);
+      } catch (uploadError) {
+        console.error('Receipt upload failed:', uploadError);
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('Continuing expense update without receipt image');
+        } else {
+          throw new Error('Receipt upload failed: ' + uploadError.message);
+        }
+      }
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    // Add WHERE clause values
+    updateValues.push(expenseId);
+    updateValues.push(groupId);
+
+    const result = await db.query(
+      `UPDATE expenses SET ${updateFields.join(', ')} WHERE id = $${idx++} AND group_id = $${idx} RETURNING *`,
+      updateValues
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    res.json({
+      message: 'Expense updated successfully',
+      expense: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update expense error:', error);
+    res.status(500).json({ error: 'Server error while updating expense' });
+  }
+};
+
+/**
+ * Get all expenses for a group (Finance Coordinator only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getExpenses = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { startDate, endDate, category, status } = req.query;
+
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can view expenses' });
+    }
+
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only view your own group\'s expenses' });
+    }
+
+    // Build query with optional filters
+    let query = `
+      SELECT 
+        e.id,
+        e.description,
+        e.category,
+        e.amount,
+        e.quantity,
+        e.unit,
+        e.type,
+        e.status,
+        e.expense_date,
+        e.receipt_url,
+        e.created_at,
+        e.updated_at,
+        CONCAT(u.first_name, ' ', u.last_name) as recorded_by
+      FROM expenses e
+      JOIN users u ON e.recorded_by_user_id = u.id
+      WHERE e.group_id = $1
+    `;
+    const queryParams = [groupId];
+
+    if (startDate) {
+      query += ` AND e.expense_date >= $${queryParams.length + 1}`;
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND e.expense_date <= $${queryParams.length + 1}`;
+      queryParams.push(endDate);
+    }
+
+    if (category) {
+      query += ` AND e.category = $${queryParams.length + 1}`;
+      queryParams.push(category);
+    }
+
+    if (status) {
+      query += ` AND e.status = $${queryParams.length + 1}`;
+      queryParams.push(status);
+    }
+
+    query += ' ORDER BY e.expense_date DESC';
+
+    const result = await db.query(query, queryParams);
+
+    // Get expense summary
+    const summaryResult = await db.query(
+      `SELECT 
+        COUNT(*) as total_count,
+        COALESCE(SUM(amount), 0) as total_amount,
+        COUNT(DISTINCT category) as category_count
+      FROM expenses
+      WHERE group_id = $1`,
+      [groupId]
+    );
+
+    // Get category breakdown
+    const categoryBreakdownResult = await db.query(
+      `SELECT 
+        category,
+        COUNT(*) as count,
+        COALESCE(SUM(amount), 0) as total_amount
+      FROM expenses
+      WHERE group_id = $1
+      GROUP BY category
+      ORDER BY total_amount DESC`,
+      [groupId]
+    );
+
+    res.json({
+      expenses: result.rows.map(expense => ({
+        ...expense,
+        amount: parseFloat(expense.amount),
+        quantity: parseFloat(expense.quantity)
+      })),
+      summary: {
+        ...summaryResult.rows[0],
+        total_amount: parseFloat(summaryResult.rows[0].total_amount),
+        by_category: categoryBreakdownResult.rows.map(cat => ({
+          ...cat,
+          total_amount: parseFloat(cat.total_amount)
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get expenses error:', error);
+    res.status(500).json({ error: 'Server error while fetching expenses' });
+  }
+};
+
+/**
+ * Delete an expense (Finance Coordinator only)
+ */
+const deleteExpense = async (req, res) => {
+  try {
+    const { groupId, expenseId } = req.params;
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ error: 'Only finance coordinators can delete expenses' });
+    }
+    if (userGroupId != groupId) {
+      return res.status(403).json({ error: 'You can only delete expenses in your own group' });
+    }
+    // Delete expense
+    const result = await db.query(
+      'DELETE FROM expenses WHERE id = $1 AND group_id = $2 RETURNING id',
+      [expenseId, groupId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    res.json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    console.error('Delete expense error:', error);
+    res.status(500).json({ error: 'Server error while deleting expense' });
+  }
+};
+
+/**
+ * Get pending intra-group loan requests for a specific group
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getPendingIntraGroupLoans = async (req, res) => {
+  const groupId = req.params.groupId;
+  
+  try {
+    // Verify user is finance coordinator of the group
+    const userId = req.user.userId;
+    const userResult = await db.query(
+      'SELECT role FROM users WHERE id = $1 AND group_id = $2',
+      [userId, groupId]
+    );
+
+    if (!userResult.rows.length || userResult.rows[0].role !== 'finance_coordinator') {
+      return res.status(403).json({
+        success: false,
+        error: 'You must be the finance coordinator of this group to view pending loans'
+      });
+    }
+
+    // Get pending intra-group loans
+    const loansResult = await db.query(`
+      SELECT 
+        l.id,
+        l.loan_type,
+        l.requesting_user_id,
+        l.requesting_group_id,
+        l.providing_group_id,
+        l.amount_requested,
+        l.fee_applied,
+        l.status,
+        l.request_date,
+        l.due_date,
+        CONCAT(u.first_name, ' ', u.last_name) as requesting_user_name
+      FROM loans l
+      JOIN users u ON l.requesting_user_id = u.id
+      WHERE l.requesting_group_id = $1
+      AND l.providing_group_id = $1
+      AND l.loan_type = 'intra_group'
+      AND l.status = 'requested'
+      ORDER BY l.request_date DESC
+    `, [groupId]);
+
+    res.json({
+      success: true,
+      loans: loansResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching pending intra-group loans:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending intra-group loans'
+    });
+  }
+};
+
+/**
+ * Get pending inter-group loan requests (incoming) for a specific group
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getPendingInterGroupLoansIncoming = async (req, res) => {
+  const groupId = req.params.groupId;
+  
+  try {
+    // Verify user is finance coordinator of the group
+    const userId = req.user.userId;
+    const userResult = await db.query(
+      'SELECT role FROM users WHERE id = $1 AND group_id = $2',
+      [userId, groupId]
+    );
+
+    if (!userResult.rows.length || userResult.rows[0].role !== 'finance_coordinator') {
+      return res.status(403).json({
+        success: false,
+        error: 'You must be the finance coordinator of this group to view pending loans'
+      });
+    }
+
+    // Get pending inter-group loans where this group is the provider
+    const loansResult = await db.query(`
+      SELECT 
+        l.id,
+        l.loan_type,
+        l.requesting_user_id,
+        l.requesting_group_id,
+        l.providing_group_id,
+        l.amount_requested,
+        l.fee_applied,
+        l.status,
+        l.request_date,
+        l.due_date,
+        CONCAT(u.first_name, ' ', u.last_name) as requesting_user_name
+      FROM loans l
+      JOIN users u ON l.requesting_user_id = u.id
+      WHERE l.providing_group_id = $1
+      AND l.requesting_group_id != $1
+      AND l.loan_type = 'inter_group'
+      AND l.status = 'requested'
+      ORDER BY l.request_date DESC
+    `, [groupId]);
+
+    res.json({
+      success: true,
+      loans: loansResult.rows
+    });
+  } catch (err) {
+    console.error('Error fetching pending inter-group loans:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending inter-group loans'
+    });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroup,
@@ -668,5 +1188,12 @@ module.exports = {
   regenerateGroupCode,
   updateGroupSettings,
   getGroupMembers,
-  getUserContributions
+  getUserContributions,
+  getPendingPaymentsForGroup,
+  addExpense,
+  getExpenses,
+  updateExpense,
+  deleteExpense,
+  getPendingIntraGroupLoans,
+  getPendingInterGroupLoansIncoming
 }; 

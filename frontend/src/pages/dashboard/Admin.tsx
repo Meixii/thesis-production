@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navigation from '../components/ui/Navigation';
-import WeeksAdmin from '../components/admin/WeeksAdmin';
-import UsersAdmin from '../components/admin/UsersAdmin';
-import GroupsAdmin from '../components/admin/GroupsAdmin';
-import Button from '../components/ui/Button';
-import { getApiUrl } from '../utils/api';
-import { useToast } from '../context/ToastContext';
+import Navigation from '../../components/ui/Navigation';
+import WeeksAdmin from '../../components/admin/WeeksAdmin';
+import UsersAdmin from '../../components/admin/UsersAdmin';
+import GroupsAdmin from '../../components/admin/GroupsAdmin';
+import Button from '../../components/ui/Button';
+import { getApiUrl } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 
 const Admin = () => {
   const navigate = useNavigate();

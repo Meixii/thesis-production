@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
+import Card from '../ui/Card';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
 // import Divider from '../components/ui/Divider';
 // import SocialButton from '../components/ui/SocialButton';
-import { getApiUrl } from '../utils/api';
-import { useToast } from '../context/ToastContext';
+import { getApiUrl } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 
 type UserRole = 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
 

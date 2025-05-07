@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import Card from '../components/ui/Card';
+import Card from '../ui/Card';
 
 const AuthCallback = () => {
   const navigate = useNavigate();

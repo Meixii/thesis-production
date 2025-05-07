@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import { useToast } from '../context/ToastContext';
-import { getApiUrl } from '../utils/api';
+import Card from '../ui/Card';
+import { useToast } from '../../context/ToastContext';
+import { getApiUrl } from '../../utils/api';
 
 const VerifyEmailInfo = () => {
   const location = useLocation();

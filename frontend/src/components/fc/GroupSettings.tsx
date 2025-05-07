@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import Navigation from '../components/ui/Navigation';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { getApiUrl } from '../utils/api';
-import { useToast } from '../context/ToastContext';
+import Navigation from '../ui/Navigation';
+import Card from '../ui/Card';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+import { getApiUrl } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 
 interface GroupSettings {
   id: number;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Card from '../components/ui/Card';
-import { getApiUrl } from '../utils/api';
+import Card from '../ui/Card';
+import { getApiUrl } from '../../utils/api';
 
 const VerifyEmail = () => {
   const { token } = useParams();

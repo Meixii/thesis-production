@@ -1,21 +1,21 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import AuthCallback from './pages/AuthCallback';
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import AuthCallback from './components/auth/AuthCallback';
 import StudentDashboard from './pages/dashboard/StudentDashboard';
 import FCDashboard from './pages/dashboard/FCDashboard';
-import VerifyEmail from './pages/VerifyEmail';
-import VerifyEmailInfo from './pages/VerifyEmailInfo';
+import VerifyEmail from './components/auth/VerifyEmail';
+import VerifyEmailInfo from './components/auth/VerifyEmailInfo';
 import Payment from './pages/Payment';
 import LoanRequest from './pages/LoanRequest';
 import MyLoans from './pages/MyLoans';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 import Profile from './pages/Profile';
-import GroupSettings from './pages/GroupSettings';
-import Members from './pages/Members';
-import MemberDetail from './pages/MemberDetail';
-import Admin from './pages/Admin';
+import GroupSettings from './components/fc/GroupSettings';
+import Members from './components/fc/Members';
+import MemberDetail from './components/fc/MemberDetail';
+import Admin from './pages/dashboard/Admin';
 import { ToastProvider } from './context/ToastContext';
 import './App.css';
 import TreasurerDashboard from './components/treasurer/TreasurerDashboard';
@@ -26,13 +26,17 @@ import PendingPayments from './components/treasurer/PendingPayments';
 import ExportData from './components/treasurer/ExportData';
 import ProtectedRoute from './components/ProtectedRoute';
 //import TreasurerProfile from './components/treasurer/TreasurerProfile';
-import JoinGroupStep from './pages/JoinGroupStep';
+import JoinGroupStep from './components/auth/JoinGroupStep';
 import React, { useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getApiUrl } from './utils/api';
 import DashboardRouter from './pages/DashboardRouter';
 //import StudentDashboardGuard from './pages/dashboard/StudentDashboardGuard';
 import SectionStudentDashboardGuard from './pages/dashboard/SectionStudentDashboardGuard';
+import VerifyPayments from './components/fc/VerifyPayments';
+import Expenses from './components/fc/Expenses';
+import LoanManagement from './components/fc/LoanManagement';
+import LoanDisbursement from './components/fc/LoanDisbursement';
 
 function RequireGroup({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -237,6 +241,46 @@ function App() {
               <ProtectedRoute role="student">
                 <RequireGroup>
                   <SectionStudentDashboardGuard />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/verify-payments"
+            element={
+              <ProtectedRoute role="finance_coordinator">
+                <RequireGroup>
+                  <VerifyPayments />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute role="finance_coordinator">
+                <RequireGroup>
+                  <Expenses />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans"
+            element={
+              <ProtectedRoute role="finance_coordinator">
+                <RequireGroup>
+                  <LoanManagement />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans/disburse/:loanId"
+            element={
+              <ProtectedRoute role="finance_coordinator">
+                <RequireGroup>
+                  <LoanDisbursement />
                 </RequireGroup>
               </ProtectedRoute>
             }
