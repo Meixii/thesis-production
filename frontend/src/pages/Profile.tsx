@@ -787,7 +787,7 @@ const Profile = () => {
               {isChangingPassword ? (
                 <form onSubmit={handlePasswordSubmit} className="space-y-4">
                   <Input type="password" name="currentPassword" label="Current Password" value={passwordFormData.currentPassword} onChange={handlePasswordChange} required />
-                  <Input type="password" name="newPassword" label="New Password" value={passwordFormData.newPassword} onChange={handlePasswordChange} error={passwordErrors.newPassword} required />
+                  <Input type="password" name="newPassword" label="New Password" value={passwordFormData.newPassword} onChange={handlePasswordChange} error={passwordErrors.newPassword && !passwordErrors.newPassword.includes('Password must') ? passwordErrors.newPassword : ''} required />
                   <Input type="password" name="confirmPassword" label="Confirm New Password" value={passwordFormData.confirmPassword} onChange={handlePasswordChange} error={passwordErrors.confirmPassword} required />
                   <div className="mt-4 p-4 bg-gray-50 dark:bg-neutral-700/30 rounded-lg">
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Password Requirements:</h3>
