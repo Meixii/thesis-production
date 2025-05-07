@@ -6,6 +6,7 @@ import Navigation from '../ui/Navigation';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { Tab } from '@headlessui/react';
+import Input from '../ui/Input';
 
 interface Loan {
   id: number;
@@ -19,6 +20,7 @@ interface Loan {
   status: 'requested' | 'approved' | 'rejected' | 'disbursed' | 'partially_repaid' | 'fully_repaid';
   request_date: string;
   due_date: string | null;
+  amount_approved?: number;
 }
 
 interface ConfirmModalProps {
@@ -90,7 +92,6 @@ const LoanManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // const [userId, setUserId] = useState<number | null>(null);
   const [groupId, setGroupId] = useState<number | null>(null);
   
   // Confirmation modal state
@@ -104,6 +105,21 @@ const LoanManagement: React.FC = () => {
     action: () => {},
     loanId: 0
   });
+
+  // Inter-group loan request form state
+  const [groups, setGroups] = useState<{ id: number; group_name: string }[]>([]);
+  const [targetGroupId, setTargetGroupId] = useState<number | ''>('');
+  const [loanAmount, setLoanAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+
+  // Add state for approved loans
+  const [approvedLoans, setApprovedLoans] = useState<Loan[]>([]);
+  const [approvedLoading, setApprovedLoading] = useState(false);
+  const [approvedError, setApprovedError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserInfo().then(groupId => {
@@ -132,10 +148,8 @@ const LoanManagement: React.FC = () => {
       }
 
       const data = await response.json();
-      // const fetchedUserId = data.id || data.userId || data.data?.id || data.data?.userId;
       const fetchedGroupId = data.groupId || data.group_id || data.data?.groupId || data.data?.group_id;
 
-      // setUserId(fetchedUserId);
       setGroupId(fetchedGroupId);
 
       return fetchedGroupId;
@@ -326,10 +340,6 @@ const LoanManagement: React.FC = () => {
     }
   };
 
-  // const handleDisburse = async (loanId: number) => {
-  //   navigate(`/loans/disburse/${loanId}`);
-  // };
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
@@ -445,23 +455,141 @@ const LoanManagement: React.FC = () => {
     );
   };
 
+  // Fetch approved loans when groupId changes
+  useEffect(() => {
+    if (!groupId) return;
+    setApprovedLoading(true);
+    setApprovedError(null);
+    fetch(getApiUrl('/api/loans/approved'), {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then(res => res.json())
+      .then(data => setApprovedLoans(data.loans || []))
+      .catch(err => setApprovedError('Failed to fetch approved loans'))
+      .finally(() => setApprovedLoading(false));
+  }, [groupId]);
+
   const ApprovedLoans = () => (
     <div className="space-y-6">
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-        <p>This section will display approved loans pending disbursement.</p>
-        <p className="text-sm mt-2">Feature coming soon.</p>
-      </div>
+      {approvedLoading ? (
+        <div className="flex justify-center items-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+        </div>
+      ) : approvedError ? (
+        <div className="text-center text-red-500 dark:text-red-400">{approvedError}</div>
+      ) : approvedLoans.length === 0 ? (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No approved loans pending disbursement.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-neutral-800">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Borrower</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Request Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-gray-800">
+              {approvedLoans.map(loan => (
+                <tr key={loan.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">{loan.requesting_user_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 dark:text-white">{formatCurrency(loan.amount_approved || loan.amount_requested)}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 dark:text-white">{formatDate(loan.request_date)}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 dark:text-white">{loan.due_date ? formatDate(loan.due_date) : 'Not specified'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <Button
+                      className="bg-primary-500 hover:bg-primary-600 text-white text-sm px-3 py-1 rounded"
+                      onClick={() => navigate(`/loans/disburse/${loan.id}`)}
+                    >
+                      Disburse
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
-  const InterGroupLoanRequest = () => (
-    <div className="space-y-6">
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-        <p>This section will allow you to request loans from other groups.</p>
-        <p className="text-sm mt-2">Feature coming soon.</p>
-      </div>
-    </div>
-  );
+  // Add useEffect to fetch groups for Inter-Group Loan Request
+  useEffect(() => {
+    // Only fetch when the tab is mounted and groupId is available
+    if (!groupId) return;
+    setGroupsLoading(true);
+    setFormError(null);
+    const token = localStorage.getItem('token');
+    fetch(getApiUrl('/api/groups'), {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        // Exclude own group
+        const filtered = Array.isArray(data)
+          ? data.filter((g: any) => g.id !== groupId)
+          : [];
+        setGroups(filtered);
+      })
+      .catch(() => setFormError('Failed to fetch groups'))
+      .finally(() => setGroupsLoading(false));
+  }, [groupId]);
+
+  const handleInterGroupLoanSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFormError(null);
+    if (!targetGroupId || !loanAmount || !dueDate) {
+      setFormError('Please fill in all required fields.');
+      return;
+    }
+    if (isNaN(Number(loanAmount)) || Number(loanAmount) <= 0) {
+      setFormError('Amount must be a positive number.');
+      return;
+    }
+    setIsSubmitting(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(getApiUrl('/api/loans/request/inter'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          target_group_id: targetGroupId,
+          amount: Number(loanAmount),
+          due_date: dueDate,
+          notes: notes || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to submit loan request');
+      }
+      showToast('Inter-group loan request submitted!', 'success');
+      setTargetGroupId('');
+      setLoanAmount('');
+      setDueDate('');
+      setNotes('');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to submit loan request');
+      showToast(err instanceof Error ? err.message : 'Failed to submit loan request', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-neutral-900">
@@ -582,7 +710,61 @@ const LoanManagement: React.FC = () => {
                       Request to borrow funds from another group.
                     </p>
                   </div>
-                  <InterGroupLoanRequest />
+                  <form className="space-y-6 max-w-lg mx-auto" onSubmit={handleInterGroupLoanSubmit}>
+                    <div>
+                      <label htmlFor="targetGroup" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Target Group <span className="text-red-500">*</span>
+                      </label>
+                      {groupsLoading ? (
+                        <div className="text-gray-500 dark:text-gray-400">Loading groups...</div>
+                      ) : (
+                        <select
+                          id="targetGroup"
+                          className="w-full border rounded px-3 py-2 bg-white dark:bg-neutral-900 text-gray-900 dark:text-white"
+                          value={targetGroupId}
+                          onChange={e => setTargetGroupId(Number(e.target.value))}
+                          required
+                        >
+                          <option value="">Select a group</option>
+                          {groups.map(g => (
+                            <option key={g.id} value={g.id}>{g.group_name || `Group ${g.id}`}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <Input
+                      id="loanAmount"
+                      name="loanAmount"
+                      label="Amount (PHP)"
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={loanAmount}
+                      onChange={e => setLoanAmount(e.target.value)}
+                      required
+                    />
+                    <Input
+                      id="dueDate"
+                      name="dueDate"
+                      label="Due Date"
+                      type="date"
+                      value={dueDate}
+                      onChange={e => setDueDate(e.target.value)}
+                      required
+                    />
+                    <Input
+                      id="notes"
+                      name="notes"
+                      label="Notes (optional)"
+                      type="text"
+                      value={notes}
+                      onChange={e => setNotes(e.target.value)}
+                    />
+                    {formError && <div className="text-red-500 text-sm mb-2">{formError}</div>}
+                    <Button type="submit" className="w-full" isLoading={isSubmitting} loadingText="Submitting...">
+                      Submit Request
+                    </Button>
+                  </form>
                 </Card>
               </Tab.Panel>
             </Tab.Panels>

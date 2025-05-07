@@ -3,6 +3,34 @@
 ## Backend 
 (Always make the recent update ascending after this)
 
+Update #55
+- Implemented GET /api/groups endpoint to return all groups (id, group_name) for inter-group loan selection by Finance Coordinators.
+- Fixed /api/loans/approved endpoint to ensure it returns only approved loans for the FC's group and does not expect a string parameter. This resolves the 500 error when fetching approved loans.
+
+Update #54
+- Implemented API endpoint for Finance Coordinators to request inter-group loans:
+  - Added POST /api/loans/request/inter
+  - Accepts target_group_id, amount, due_date, and notes
+  - Validates permissions and prevents duplicate active requests
+  - Only the FC of a group can perform this action
+- Added Cloudinary filename pattern for loan repayment proof uploads:
+  - Filenames now use loanrepayments/repayment_LOANID_USERID_MMDDYYYY_HHMMSS for loan repayment proofs
+
+Update #53
+
+- Implemented API endpoint for Finance Coordinators to record manual/cash loan repayments:
+  - Added POST /api/loans/:loanId/record-repayment
+  - Accepts amount (required), optional repayment date, notes, and proof upload
+  - Creates a loan_repayments record, updates loans.total_amount_repaid, and updates loan status if fully repaid
+  - Only the FC of the providing group can perform this action
+
+Update #52
+- Implemented API endpoint for Finance Coordinators to mark a loan as disbursed:
+  - Added POST /api/loans/:loanId/disburse
+  - Accepts optional proof upload, reference ID, and notes
+  - Updates loan status to 'disbursed', sets disbursement date, stores proof/ref ID, and disbursed_by_user_id
+  - Only the FC of the providing group can perform this action
+
 Update #51
 - Implemented comprehensive Loan Management for Finance Coordinators:
   - Added API endpoints for retrieving pending intra-group and inter-group loans

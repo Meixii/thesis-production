@@ -37,6 +37,14 @@ const LoanDisbursement: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add state for manual repayment form
+  const [repaymentAmount, setRepaymentAmount] = useState('');
+  const [repaymentDate, setRepaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [repaymentNotes, setRepaymentNotes] = useState('');
+  const [repaymentFile, setRepaymentFile] = useState<File | null>(null);
+  const [isRepaymentSubmitting, setIsRepaymentSubmitting] = useState(false);
+  const [repaymentError, setRepaymentError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchLoanDetails = async () => {
       setIsLoading(true);
@@ -158,6 +166,50 @@ const LoanDisbursement: React.FC = () => {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const handleRepaymentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setRepaymentFile(e.target.files[0]);
+    }
+  };
+
+  const handleRepaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRepaymentError(null);
+    if (!repaymentAmount || isNaN(Number(repaymentAmount)) || Number(repaymentAmount) <= 0) {
+      setRepaymentError('Please enter a valid repayment amount.');
+      return;
+    }
+    setIsRepaymentSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('amount', repaymentAmount);
+      formData.append('repayment_date', repaymentDate);
+      formData.append('notes', repaymentNotes);
+      if (repaymentFile) {
+        formData.append('repayment_proof', repaymentFile);
+      }
+      const response = await fetch(getApiUrl(`/api/loans/${loanId}/record-repayment`), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to record repayment');
+      showToast('Loan repayment recorded!', 'success');
+      setRepaymentAmount('');
+      setRepaymentDate(new Date().toISOString().slice(0, 10));
+      setRepaymentNotes('');
+      setRepaymentFile(null);
+    } catch (err) {
+      setRepaymentError(err instanceof Error ? err.message : 'Failed to record repayment');
+      showToast(err instanceof Error ? err.message : 'Failed to record repayment', 'error');
+    } finally {
+      setIsRepaymentSubmitting(false);
+    }
   };
 
   return (
@@ -342,6 +394,54 @@ const LoanDisbursement: React.FC = () => {
                       Disburse Loan
                     </Button>
                   </div>
+                </form>
+              </div>
+            </Card>
+
+            <Card className="mt-8">
+              <div className="p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Record Manual Loan Repayment</h2>
+                <form onSubmit={handleRepaymentSubmit} className="space-y-6">
+                  <Input
+                    id="repaymentAmount"
+                    label="Repayment Amount (PHP)"
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={repaymentAmount}
+                    onChange={e => setRepaymentAmount(e.target.value)}
+                    required
+                  />
+                  <Input
+                    id="repaymentDate"
+                    label="Repayment Date"
+                    type="date"
+                    value={repaymentDate}
+                    onChange={e => setRepaymentDate(e.target.value)}
+                    required
+                  />
+                  <Input
+                    id="repaymentNotes"
+                    label="Notes (optional)"
+                    type="text"
+                    value={repaymentNotes}
+                    onChange={e => setRepaymentNotes(e.target.value)}
+                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Repayment Proof (optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleRepaymentFileChange}
+                      className="block w-full text-sm text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer bg-white dark:bg-neutral-900 focus:outline-none"
+                    />
+                  </div>
+                  {repaymentError && <div className="text-red-500 text-sm mb-2">{repaymentError}</div>}
+                  <Button type="submit" className="w-full" isLoading={isRepaymentSubmitting} loadingText="Recording...">
+                    Record Repayment
+                  </Button>
                 </form>
               </div>
             </Card>

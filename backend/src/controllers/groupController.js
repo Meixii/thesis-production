@@ -1180,6 +1180,17 @@ const getPendingInterGroupLoansIncoming = async (req, res) => {
   }
 };
 
+// Get all thesis groups (id, group_name) for FC inter-group loan selection
+const getAllGroups = async (req, res) => {
+  try {
+    const result = await db.query("SELECT id, group_name FROM groups WHERE group_type = 'thesis' ORDER BY group_name ASC");
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get all groups error:', error);
+    res.status(500).json({ error: 'Server error while fetching groups' });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroup,
@@ -1195,5 +1206,6 @@ module.exports = {
   updateExpense,
   deleteExpense,
   getPendingIntraGroupLoans,
-  getPendingInterGroupLoansIncoming
+  getPendingInterGroupLoansIncoming,
+  getAllGroups
 }; 

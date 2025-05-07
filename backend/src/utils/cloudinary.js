@@ -55,6 +55,12 @@ const generateExpenseReceiptFilename = (category, amount, quantity, unit, date =
   return `ER_${safeCategory}${safeAmount}-${safeQuantity}${safeUnit}_${formattedDate}`;
 };
 
+// Add this function for loan repayment proof filenames
+const generateLoanRepaymentFilename = (loanId, userId, date = new Date()) => {
+  const formattedDate = formatDateForFilename(date);
+  return `loanrepayments/repayment_${loanId}_${userId}_${formattedDate}`;
+};
+
 /**
  * Upload a file to Cloudinary
  * @param {Object} file - The file object from multer
@@ -67,7 +73,9 @@ const uploadToCloudinary = async (file, metadata = {}) => {
     const dataURI = `data:${file.mimetype};base64,${b64}`;
 
     let publicId;
-    if (metadata.expenseReceipt && metadata.category && metadata.amount && metadata.quantity && metadata.unit) {
+    if (metadata.loanRepayment && metadata.loanId && metadata.userId) {
+      publicId = generateLoanRepaymentFilename(metadata.loanId, metadata.userId);
+    } else if (metadata.expenseReceipt && metadata.category && metadata.amount && metadata.quantity && metadata.unit) {
       publicId = `expenses/${generateExpenseReceiptFilename(metadata.category, metadata.amount, metadata.quantity, metadata.unit)}`;
     } else if (metadata.profilePic && metadata.lastName) {
       publicId = `profile_pics/${formatProfilePicFilename(metadata.lastName)}`;
@@ -100,4 +108,5 @@ module.exports = {
   formatDateForFilename,
   formatProfilePicFilename,
   generateExpenseReceiptFilename,
+  generateLoanRepaymentFilename,
 }; 
