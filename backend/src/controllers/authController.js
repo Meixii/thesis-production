@@ -95,6 +95,9 @@ const register = async (req, res) => {
     // Hash password for traditional registration
     const passwordHash = ssoProvider ? null : await bcrypt.hash(password, 10);
 
+    // Generate default profile picture URL using DiceBear
+    const profilePictureUrl = `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(email)}`;
+
     // Insert new user
     const result = await db.query(
       `INSERT INTO users (
@@ -107,8 +110,9 @@ const register = async (req, res) => {
         role,
         ${ssoProvider === 'facebook' ? 'facebook_id' : ssoProvider === 'google' ? 'google_id' : 'email_verified'},
         verification_token,
-        verification_token_expires
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        verification_token_expires,
+        profile_picture_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         firstName,
         middleName || null,
@@ -119,7 +123,8 @@ const register = async (req, res) => {
         'student',
         ssoProvider ? ssoId : false,
         verificationToken,
-        verificationExpires
+        verificationExpires,
+        profilePictureUrl // Add the profile picture URL
       ]
     );
 

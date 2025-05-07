@@ -557,6 +557,14 @@ PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
 ## Frontend
 (Always make the recent update ASECENDING after this)
 
+Update #81
+- Added default profile pictures for all new users:
+  - Integrated DiceBear API to generate unique avatars based on email addresses
+  - Automatically assigns profile_picture_url during user registration
+  - Maintains consistent visual identity across the application
+  - Ensures all users have a personalized avatar without manual uploads
+  - Improves user experience by eliminating empty profile images
+
 Update #80
 - Added 'danger' (red) variant to Button component for destructive actions.
 - Updated ConfirmModal to accept 'danger' as confirmVariant for confirm button.
