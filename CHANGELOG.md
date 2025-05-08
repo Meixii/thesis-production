@@ -3,6 +3,15 @@
 ## Backend 
 (Always make the recent update ascending after this)
 
+Update #57
+- Fixed payment submission (weekly and expense share) functionality:
+  - Corrected `/api/payments/submit` route path in `paymentRoutes.js` (from `/` to `/submit`) to resolve 404 errors.
+  - Added JSON parsing for `payment_target` field in `paymentController.js` (within `submitPayment` function) to correctly process payment target details and resolve 400 errors.
+
+Update #56
+- Added `POST /api/groups/:groupId/contributions/reset` endpoint for Finance Coordinators to reset all weekly contributions and their payment allocations for all members within their group. This action is destructive and intended for scenarios like preparing for production.
+- Fixed /api/loans/approved endpoint to ensure it returns only approved loans for the FC's group and does not expect a string parameter. This resolves the 500 error when fetching approved loans.
+
 Update #55
 - Implemented GET /api/groups endpoint to return all groups (id, group_name) for inter-group loan selection by Finance Coordinators.
 - Fixed /api/loans/approved endpoint to ensure it returns only approved loans for the FC's group and does not expect a string parameter. This resolves the 500 error when fetching approved loans.
@@ -556,6 +565,11 @@ PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES DESCENDING ORDER
 
 ## Frontend
 (Always make the recent update DESCENDING ORDER after this)
+
+Update #92
+- Added "Reset All Weekly Contributions" feature to the Finance Coordinator Dashboard under an "Advanced Group Actions" card.
+- Includes a confirmation modal to prevent accidental data deletion.
+- This allows FCs to clear all past weekly contribution records and their associated payment allocations for their group by calling the new backend endpoint.
 
 Update #91
 - Fixed numeric type handling in expenses:

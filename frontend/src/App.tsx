@@ -39,6 +39,7 @@ import VerifyPayments from './components/fc/VerifyPayments';
 import Expenses from './components/fc/Expenses';
 import LoanManagement from './components/fc/LoanManagement';
 import LoanDisbursement from './components/fc/LoanDisbursement';
+import PayExpense from './pages/PayExpense';
 
 function RequireGroup({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ function App() {
           />
           <Route path="/verify-email" element={<VerifyEmailInfo />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
-          <Route path="/payment" element={<Payment />} />
+          <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
           
           {/* Protected Profile Route */}
           <Route
@@ -297,6 +298,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/pay-expense" element={<ProtectedRoute><PayExpense /></ProtectedRoute>} />
           {/* Add this as the last route to catch all unmatched routes */}
           <Route path="*" element={<NotFound />} />
         </Routes>

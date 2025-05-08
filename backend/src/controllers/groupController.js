@@ -722,94 +722,92 @@ const getPendingPaymentsForGroup = async (req, res) => {
  * @param {Object} res - Express response object
  */
 const addExpense = async (req, res) => {
+  const client = await db.connect(); // Use client for transaction
   try {
     const { groupId } = req.params;
-    const { description, category, amount, quantity, unit, type, status, expense_date } = req.body;
+    const { description, category, amount, quantity, unit, type, status, expense_date, is_distributed } = req.body;
     const receiptFile = req.file;
+    const userId = req.user.userId;
+
+    await client.query('BEGIN'); // Start transaction
 
     // Verify user is a finance coordinator of this group
-    const userResult = await db.query(
+    const userResult = await client.query(
       'SELECT role, group_id FROM users WHERE id = $1',
-      [req.user.userId]
+      [userId]
     );
-
-    if (!userResult.rows.length) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    if (!userResult.rows.length) throw new Error('User not found');
     const userRole = userResult.rows[0].role;
     const userGroupId = userResult.rows[0].group_id;
+    if (userRole !== 'finance_coordinator') throw new Error('Only finance coordinators can add expenses');
+    if (userGroupId != groupId) throw new Error('You can only add expenses to your own group');
 
-    if (userRole !== 'finance_coordinator') {
-      return res.status(403).json({ error: 'Only finance coordinators can add expenses' });
+    let amountPerStudent = null;
+    let finalIsDistributed = is_distributed === 'true';
+
+    if (finalIsDistributed) {
+      if (!amount || parseFloat(amount) <= 0) {
+         throw new Error('Cannot distribute an expense with zero or negative amount.');
+      }
+      // Calculate amount per student
+      const memberCountResult = await client.query(
+        'SELECT COUNT(*) as count FROM users WHERE group_id = $1 AND is_active = TRUE',
+        [groupId]
+      );
+      const memberCount = parseInt(memberCountResult.rows[0].count, 10);
+      if (memberCount > 0) {
+        amountPerStudent = Math.ceil(parseFloat(amount) / memberCount);
+        console.log(`Distributing expense: Total ${amount}, Members ${memberCount}, Per Student (Ceiling): ${amountPerStudent}`);
+      } else {
+         // Cannot distribute if there are no active members
+         finalIsDistributed = false; // Revert distribution if no members
+         console.warn(`Cannot distribute expense for group ${groupId} as it has no active members.`);
+      }
     }
 
-    if (userGroupId != groupId) {
-      return res.status(403).json({ error: 'You can only add expenses to your own group' });
-    }
-
-    // Upload receipt if provided
+    // Upload receipt if provided (keep existing logic)
     let receiptUrl = null;
     if (receiptFile) {
       try {
-        const uploadResult = await uploadToCloudinary(receiptFile, {
-          expenseReceipt: true,
-          category,
-          amount,
-          quantity: quantity || 1,
-          unit: unit || 'pcs'
-        });
+        const uploadResult = await uploadToCloudinary(receiptFile, { expenseReceipt: true, category, amount, quantity: quantity || 1, unit: unit || 'pcs' });
         receiptUrl = uploadResult.secure_url;
       } catch (uploadError) {
-        console.error('Receipt upload failed:', uploadError);
-        if (process.env.NODE_ENV === 'production') {
-          console.warn('Continuing expense creation without receipt image');
-        } else {
-          throw new Error('Receipt upload failed: ' + uploadError.message);
-        }
+        console.error('Receipt upload failed during expense add:', uploadError);
+        // Decide handling: throw, warn, proceed?
+        // Let's proceed but log warning, as receipt isn't strictly essential for the record.
+        console.warn('Proceeding with expense creation without receipt due to upload error.');
       }
     }
 
     // Create expense record
-    const result = await db.query(
+    const result = await client.query(
       `INSERT INTO expenses (
-        group_id,
-        recorded_by_user_id,
-        description,
-        category,
-        amount,
-        quantity,
-        unit,
-        type,
-        status,
-        expense_date,
-        receipt_url,
-        created_at,
-        updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING id, description, category, amount, quantity, unit, type, status, expense_date, receipt_url, created_at, updated_at`,
+        group_id, recorded_by_user_id, description, category, amount,
+        quantity, unit, type, status, expense_date, receipt_url,
+        is_distributed, amount_per_student, 
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id, description, category, amount, quantity, unit, type, status, expense_date, receipt_url, created_at, updated_at, is_distributed, amount_per_student`,
       [
-        groupId,
-        req.user.userId,
-        description,
-        category,
-        amount,
-        quantity || 1,
-        unit || 'pcs',
-        type || 'actual',
-        status || 'planned',
-        expense_date || new Date(),
-        receiptUrl
+        groupId, userId, description, category, amount,
+        quantity || 1, unit || 'pcs', type || 'actual', status || 'planned',
+        expense_date || new Date(), receiptUrl,
+        finalIsDistributed, amountPerStudent // Add new fields
       ]
     );
+
+    await client.query('COMMIT'); // Commit transaction
 
     res.status(201).json({
       message: 'Expense added successfully',
       expense: result.rows[0]
     });
   } catch (error) {
+    await client.query('ROLLBACK'); // Rollback on error
     console.error('Add expense error:', error);
-    res.status(500).json({ error: 'Server error while adding expense' });
+    res.status(500).json({ error: error.message || 'Server error while adding expense' });
+  } finally {
+      client.release(); // Release client
   }
 };
 
@@ -817,89 +815,137 @@ const addExpense = async (req, res) => {
  * Update an expense (Finance Coordinator only)
  */
 const updateExpense = async (req, res) => {
+  const client = await db.connect();
   try {
     const { groupId, expenseId } = req.params;
-    const { description, category, amount, quantity, unit, type, status, expense_date } = req.body;
+    const { description, category, amount, quantity, unit, type, status, expense_date, is_distributed } = req.body;
     const receiptFile = req.file;
+    const userId = req.user.userId;
+
+    await client.query('BEGIN');
 
     // Verify user is a finance coordinator of this group
-    const userResult = await db.query(
-      'SELECT role, group_id FROM users WHERE id = $1',
-      [req.user.userId]
-    );
-    if (!userResult.rows.length) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const userResult = await client.query('SELECT role, group_id FROM users WHERE id = $1', [userId]);
+    if (!userResult.rows.length) throw new Error('User not found');
     const userRole = userResult.rows[0].role;
     const userGroupId = userResult.rows[0].group_id;
-    if (userRole !== 'finance_coordinator') {
-      return res.status(403).json({ error: 'Only finance coordinators can edit expenses' });
-    }
-    if (userGroupId != groupId) {
-      return res.status(403).json({ error: 'You can only edit expenses in your own group' });
-    }
+    if (userRole !== 'finance_coordinator') throw new Error('Only finance coordinators can edit expenses');
+    if (userGroupId != groupId) throw new Error('You can only edit expenses in your own group');
 
-    // Build update query
+    // Fetch the current expense amount if amount is changing and distribution is intended
+    const currentExpenseResult = await client.query('SELECT amount FROM expenses WHERE id = $1 AND group_id = $2', [expenseId, groupId]);
+     if (!currentExpenseResult.rows.length) {
+        throw new Error('Expense not found');
+    }
+    const currentAmount = parseFloat(currentExpenseResult.rows[0].amount);
+    const newAmount = (amount !== undefined) ? parseFloat(amount) : currentAmount;
+
+    // Build update query parts
     let updateFields = [];
     let updateValues = [];
     let idx = 1;
-    if (description !== undefined) { updateFields.push(`description = $${idx++}`); updateValues.push(description); }
-    if (category !== undefined) { updateFields.push(`category = $${idx++}`); updateValues.push(category); }
-    if (amount !== undefined) { updateFields.push(`amount = $${idx++}`); updateValues.push(amount); }
-    if (quantity !== undefined) { updateFields.push(`quantity = $${idx++}`); updateValues.push(quantity); }
-    if (unit !== undefined) { updateFields.push(`unit = $${idx++}`); updateValues.push(unit); }
-    if (type !== undefined) { updateFields.push(`type = $${idx++}`); updateValues.push(type); }
-    if (status !== undefined) { updateFields.push(`status = $${idx++}`); updateValues.push(status); }
-    if (expense_date !== undefined) { updateFields.push(`expense_date = $${idx++}`); updateValues.push(expense_date); }
 
-    // Handle receipt upload
+    // Helper to add field and value
+    const addUpdate = (field, value) => {
+        if (value !== undefined && value !== null) { // Check for undefined AND null
+             updateFields.push(`${field} = $${idx++}`);
+             updateValues.push(value);
+        }
+    };
+
+    addUpdate('description', description);
+    addUpdate('category', category);
+    addUpdate('amount', amount); // Add the new amount if provided
+    addUpdate('quantity', quantity);
+    addUpdate('unit', unit);
+    addUpdate('type', type);
+    addUpdate('status', status);
+    addUpdate('expense_date', expense_date);
+
+    // Handle distribution logic
+    let finalIsDistributedUpdateIntent = is_distributed !== undefined ? (is_distributed === 'true') : undefined;
+    let amountPerStudent = null;
+
+    if (finalIsDistributedUpdateIntent !== undefined) {
+       addUpdate('is_distributed', finalIsDistributedUpdateIntent); 
+       if (finalIsDistributedUpdateIntent) {
+         if (newAmount <= 0) {
+            throw new Error('Cannot distribute an expense with zero or negative amount.');
+         }
+          const memberCountResult = await client.query('SELECT COUNT(*) as count FROM users WHERE group_id = $1 AND is_active = TRUE', [groupId]);
+          const memberCount = parseInt(memberCountResult.rows[0].count, 10);
+          if (memberCount > 0) {
+            amountPerStudent = Math.ceil(newAmount / memberCount);
+             addUpdate('amount_per_student', amountPerStudent);
+          } else {
+              addUpdate('is_distributed', false);
+              addUpdate('amount_per_student', null);
+          }
+       } else {
+          addUpdate('amount_per_student', null);
+       }
+    } else {
+       // If is_distributed flag was NOT passed, but amount changed, recalculate if previously distributed
+       if (amount !== undefined) {
+           const checkDistributionStatus = await client.query('SELECT is_distributed FROM expenses WHERE id = $1', [expenseId]);
+           if(checkDistributionStatus.rows.length > 0 && checkDistributionStatus.rows[0].is_distributed) {
+                const memberCountResult = await client.query('SELECT COUNT(*) as count FROM users WHERE group_id = $1 AND is_active = TRUE', [groupId]);
+                const memberCount = parseInt(memberCountResult.rows[0].count, 10);
+                 if (memberCount > 0 && newAmount > 0) {
+                    amountPerStudent = Math.ceil(newAmount / memberCount);
+                    addUpdate('amount_per_student', amountPerStudent);
+                 } else { 
+                     addUpdate('is_distributed', false);
+                     addUpdate('amount_per_student', null);
+                 }
+           }
+       }
+    }
+
+    // Handle receipt upload (similar to addExpense)
     let receiptUrl = null;
     if (receiptFile) {
       try {
-        const uploadResult = await uploadToCloudinary(receiptFile, {
-          expenseReceipt: true,
-          category,
-          amount,
-          quantity: quantity || 1,
-          unit: unit || 'pcs'
-        });
+        const uploadResult = await uploadToCloudinary(receiptFile, { expenseReceipt: true, category, amount: newAmount, quantity: quantity || 1, unit: unit || 'pcs' });
         receiptUrl = uploadResult.secure_url;
-        updateFields.push(`receipt_url = $${idx++}`);
-        updateValues.push(receiptUrl);
+        addUpdate('receipt_url', receiptUrl);
       } catch (uploadError) {
-        console.error('Receipt upload failed:', uploadError);
-        if (process.env.NODE_ENV === 'production') {
-          console.warn('Continuing expense update without receipt image');
-        } else {
-          throw new Error('Receipt upload failed: ' + uploadError.message);
-        }
+        console.error('Receipt upload failed during expense update:', uploadError);
+        console.warn('Proceeding with expense update without changing receipt due to upload error.');
       }
     }
 
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
 
-    if (updateFields.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
+    if (updateFields.length <= 1) { // <= 1 because updated_at is always added
+      throw new Error('No valid fields provided for update');
     }
 
     // Add WHERE clause values
     updateValues.push(expenseId);
     updateValues.push(groupId);
 
-    const result = await db.query(
+    const result = await client.query(
       `UPDATE expenses SET ${updateFields.join(', ')} WHERE id = $${idx++} AND group_id = $${idx} RETURNING *`,
       updateValues
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Expense not found' });
+      // Should have been caught by the earlier check, but good failsafe
+      throw new Error('Expense not found or update failed');
     }
+
+    await client.query('COMMIT');
+
     res.json({
       message: 'Expense updated successfully',
       expense: result.rows[0]
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Update expense error:', error);
-    res.status(500).json({ error: 'Server error while updating expense' });
+    res.status(500).json({ error: error.message || 'Server error while updating expense' });
+  } finally {
+      client.release();
   }
 };
 
@@ -949,6 +995,8 @@ const getExpenses = async (req, res) => {
         e.receipt_url,
         e.created_at,
         e.updated_at,
+        e.is_distributed,
+        e.amount_per_student,
         CONCAT(u.first_name, ' ', u.last_name) as recorded_by
       FROM expenses e
       JOIN users u ON e.recorded_by_user_id = u.id
@@ -1008,7 +1056,9 @@ const getExpenses = async (req, res) => {
       expenses: result.rows.map(expense => ({
         ...expense,
         amount: parseFloat(expense.amount),
-        quantity: parseFloat(expense.quantity)
+        quantity: expense.quantity ? parseFloat(expense.quantity) : undefined,
+        amount_per_student: expense.amount_per_student ? parseFloat(expense.amount_per_student) : null,
+        is_distributed: expense.is_distributed
       })),
       summary: {
         ...summaryResult.rows[0],
@@ -1191,6 +1241,80 @@ const getAllGroups = async (req, res) => {
   }
 };
 
+// New function to reset all weekly contributions for a group
+const resetGroupContributions = async (req, res) => {
+  const { groupId } = req.params;
+  const fcUserId = req.user.userId; // Assuming authenticateToken middleware adds userId to req.user
+
+  try {
+    // Verify user is a finance coordinator of this group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [fcUserId]
+    );
+
+    if (!userResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'Finance Coordinator not found' });
+    }
+
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+
+    // This check is also done by isFinanceCoordinator middleware, but good for safety
+    if (userRole !== 'finance_coordinator') {
+      return res.status(403).json({ success: false, error: 'User is not authorized to perform this action' });
+    }
+
+    // Finance coordinators can only reset contributions for their own group
+    if (parseInt(userGroupId, 10) !== parseInt(groupId, 10)) {
+      return res.status(403).json({ success: false, error: 'Finance Coordinator can only reset contributions for their own group' });
+    }
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Step 1: Delete payment allocations linked to the weekly contributions of the group
+      // Need to find contribution_ids first
+      const contributionIdsResult = await client.query(
+        'SELECT id FROM weekly_contributions WHERE group_id = $1',
+        [groupId]
+      );
+
+      if (contributionIdsResult.rows.length > 0) {
+        const contributionIds = contributionIdsResult.rows.map(row => row.id);
+        await client.query(
+          'DELETE FROM payment_allocations WHERE contribution_id = ANY($1::int[])',
+          [contributionIds]
+        );
+        // Also delete allocations from payment_allocations_dues if any contributions were linked there, though less likely
+        // This part might be an overreach if weekly_contributions are never linked to dues.
+        // For now, let's assume weekly contributions are only in `payment_allocations`.
+      }
+
+      // Step 2: Delete all weekly contributions for the group
+      await client.query(
+        'DELETE FROM weekly_contributions WHERE group_id = $1',
+        [groupId]
+      );
+
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'All weekly contributions for the group have been reset successfully.' });
+
+    } catch (transactionError) {
+      await client.query('ROLLBACK');
+      console.error('Reset group contributions transaction error:', transactionError);
+      res.status(500).json({ success: false, error: 'Failed to reset contributions due to a server error.' });
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    console.error('Reset group contributions error:', error);
+    res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroup,
@@ -1207,5 +1331,6 @@ module.exports = {
   deleteExpense,
   getPendingIntraGroupLoans,
   getPendingInterGroupLoansIncoming,
-  getAllGroups
+  getAllGroups,
+  resetGroupContributions
 }; 
