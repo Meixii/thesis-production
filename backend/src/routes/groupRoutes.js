@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGroup, getGroup, getGroupLimits, getGroupDashboard, regenerateGroupCode, updateGroupSettings, getGroupMembers, getUserContributions, getPendingPaymentsForGroup, addExpense, getExpenses, updateExpense, deleteExpense, getPendingIntraGroupLoans, getPendingInterGroupLoansIncoming } = require('../controllers/groupController');
+const { createGroup, getGroup, getGroupLimits, getGroupDashboard, regenerateGroupCode, updateGroupSettings, getGroupMembers, getUserContributions, getPendingPaymentsForGroup, addExpense, getExpenses, updateExpense, deleteExpense, getPendingIntraGroupLoans, getPendingInterGroupLoansIncoming, getAllGroups, resetGroupContributions } = require('../controllers/groupController');
 const { authenticateToken, isFinanceCoordinator } = require('../middleware/auth');
 const multer = require('multer');
 
@@ -24,7 +24,7 @@ const upload = multer({
 router.use(authenticateToken);
 
 // Add after router.use(authenticateToken)
-router.get('/', require('../controllers/groupController').getAllGroups);
+router.get('/', getAllGroups);
 
 // Create a new group
 router.post('/', createGroup);
@@ -60,7 +60,10 @@ router.patch('/:groupId/expenses/:expenseId', upload.single('receipt'), updateEx
 router.delete('/:groupId/expenses/:expenseId', deleteExpense);
 
 // Loan routes for groups
-router.get('/:groupId/loans/pending/intra', authenticateToken, isFinanceCoordinator, getPendingIntraGroupLoans);
-router.get('/:groupId/loans/pending/inter/incoming', authenticateToken, isFinanceCoordinator, getPendingInterGroupLoansIncoming);
+router.get('/:groupId/loans/pending/intra', isFinanceCoordinator, getPendingIntraGroupLoans);
+router.get('/:groupId/loans/pending/inter/incoming', isFinanceCoordinator, getPendingInterGroupLoansIncoming);
+
+// New route for resetting group contributions (FC only)
+router.post('/:groupId/contributions/reset', isFinanceCoordinator, resetGroupContributions);
 
 module.exports = router; 

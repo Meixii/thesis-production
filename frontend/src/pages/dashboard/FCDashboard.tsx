@@ -8,6 +8,7 @@ import Navigation from '../../components/ui/Navigation';
 import SimpleBarChart from '../../components/ui/SimpleBarChart';
 import SimplePieChart from '../../components/ui/SimplePieChart';
 import { useToast } from '../../context/ToastContext';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 // Types
 interface GroupData {
@@ -51,6 +52,10 @@ const FCDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dashboardData, setDashboardData] = useState<FCDashboardData | null>(null);
+
+  // Add state for reset confirmation modal and loading state for reset action
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Create mock data function to reduce duplication
   const createMockData = (groupId: number, groupName: string): FCDashboardData => {
@@ -162,6 +167,40 @@ const FCDashboard = () => {
 
     fetchDashboardData();
   }, [navigate, showToast]);
+
+  // Add handler function for resetting contributions
+  const handleResetContributions = async () => {
+    if (!dashboardData?.group.id) {
+      showToast('Group ID not found. Cannot reset contributions.', 'error');
+      setShowResetConfirmModal(false);
+      return;
+    }
+    setIsResetting(true);
+    setShowResetConfirmModal(false); // Close modal immediately
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/api/groups/${dashboardData.group.id}/contributions/reset`), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to reset contributions.');
+      }
+      showToast('All weekly contributions have been reset successfully!', 'success');
+      // Refresh data - simplest way is to reload the page
+      window.location.reload();
+    } catch (err) {
+      console.error('Reset contributions error:', err);
+      showToast(err instanceof Error ? err.message : 'An unknown error occurred while resetting contributions.', 'error');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -478,7 +517,44 @@ const FCDashboard = () => {
             </Button>
           </DashboardCard>
         </div>
+
+        {/* Advanced Group Actions Card */}
+        <DashboardCard
+          title="Advanced Group Actions"
+          className="mb-6"
+        >
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+            Perform administrative actions for your group. These actions are irreversible.
+          </p>
+          <Button
+            variant="danger"
+            className="w-full"
+            onClick={() => setShowResetConfirmModal(true)}
+            isLoading={isResetting}
+            disabled={isResetting}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            {isResetting ? 'Resetting...' : 'Reset All Weekly Contributions'}
+          </Button>
+        </DashboardCard>
+
       </main>
+
+      {/* Reset Contributions Confirmation Modal */}
+      {showResetConfirmModal && (
+        <ConfirmModal
+          isOpen={showResetConfirmModal}
+          onClose={() => setShowResetConfirmModal(false)}
+          onConfirm={handleResetContributions}
+          title="Confirm Reset Contributions"
+          message="Are you sure you want to reset ALL weekly contributions for every member in your group? This will delete all past contribution records and their payment allocations.\n\nThis action cannot be undone."
+          confirmText="Yes, Reset All"
+          cancelText="Cancel"
+          confirmVariant="danger"
+        />
+      )}
     </div>
   );
 };

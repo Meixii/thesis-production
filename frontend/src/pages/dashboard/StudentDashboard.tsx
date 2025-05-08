@@ -27,6 +27,14 @@ interface Group {
   description?: string;
 }
 
+interface PayableExpense {
+  expense_id: number;
+  description: string;
+  amount_due: number;
+  expense_date: string;
+  status: 'due' | 'pending_verification';
+}
+
 interface DashboardData {
   user: UserProfile;
   group?: Group;
@@ -65,7 +73,10 @@ interface DashboardData {
     unit?: string;
     type?: string;
     status?: string;
+    is_distributed?: boolean;
+    amount_per_student?: number;
   }>;
+  payableExpenses: PayableExpense[];
 }
 
 const StudentDashboard = () => {
@@ -98,47 +109,72 @@ const StudentDashboard = () => {
           return;
         }
 
-        const response = await fetch(getApiUrl('/api/student/dashboard'), {
+        // Fetch main dashboard data
+        const dashboardResponse = await fetch(getApiUrl('/api/student/dashboard'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
+        const dashboardJson = await dashboardResponse.json();
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          if (response.status === 404 && data.error.includes('not assigned to any group')) {
+        if (!dashboardResponse.ok) {
+          if (dashboardResponse.status === 404 && dashboardJson.error?.includes('not assigned to any group')) {
             setNoGroup(true);
             setLoading(false);
             return;
           }
-          throw new Error(data.error || 'Failed to fetch dashboard data');
+          throw new Error(dashboardJson.error || 'Failed to fetch dashboard data');
+        }
+        if (!dashboardJson.success) {
+          throw new Error(dashboardJson.error || 'Failed to fetch dashboard data');
         }
 
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch dashboard data');
+        // Fetch payable expenses data
+        let payableExpensesData: PayableExpense[] = [];
+        if (dashboardJson.data.user.groupId) { // Only fetch if user has a group
+          const payableExpensesResponse = await fetch(getApiUrl('/api/student/payable-expenses'), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (payableExpensesResponse.ok) {
+            const payableExpensesJson = await payableExpensesResponse.json();
+            if (payableExpensesJson.success) {
+              payableExpensesData = payableExpensesJson.data;
+            } else {
+              console.warn('Failed to fetch payable expenses:', payableExpensesJson.error);
+            }
+          } else {
+            console.warn('HTTP error fetching payable expenses:', payableExpensesResponse.status);
+          }
         }
 
-        // Transform the data to match our interface
         const transformedData: DashboardData = {
-          user: data.data.user,
-          group: data.data.group,
+          user: dashboardJson.data.user,
+          group: dashboardJson.data.group,
           currentWeek: {
-            startDate: data.data.currentWeek.startDate,
-            endDate: data.data.currentWeek.endDate,
-            status: data.data.currentWeek.status,
-            amountPaid: data.data.currentWeek.amountPaid || 0,
-            amountDue: data.data.currentWeek.amountDue || 10,
-            penalty: data.data.currentWeek.penalty || 0,
-            weekNumber: data.data.currentWeek.weekNumber
+            startDate: dashboardJson.data.currentWeek.startDate,
+            endDate: dashboardJson.data.currentWeek.endDate,
+            status: dashboardJson.data.currentWeek.status,
+            amountPaid: dashboardJson.data.currentWeek.amountPaid || 0,
+            amountDue: dashboardJson.data.currentWeek.amountDue || 10,
+            penalty: dashboardJson.data.currentWeek.penalty || 0,
+            weekNumber: dashboardJson.data.currentWeek.weekNumber
           },
           finances: {
-            totalContributed: data.data.totalContributed || 0,
-            outstandingBalance: data.data.outstandingBalance || 0
+            totalContributed: dashboardJson.data.totalContributed || 0,
+            outstandingBalance: dashboardJson.data.outstandingBalance || 0
           },
-          activeLoans: data.data.activeLoans || [],
-          expenses: data.data.expenses || []
+          activeLoans: dashboardJson.data.activeLoans || [],
+          expenses: (dashboardJson.data.expenses || []).map((exp: any) => ({ // Map to ensure correct types
+            ...exp,
+            amount: parseFloat(exp.amount),
+            quantity: exp.quantity ? parseFloat(exp.quantity) : undefined,
+            amount_per_student: exp.amount_per_student ? parseFloat(exp.amount_per_student) : undefined
+          })),
+          payableExpenses: payableExpensesData // Assign fetched data
         };
 
         setDashboardData(transformedData);
@@ -225,6 +261,19 @@ const StudentDashboard = () => {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
     }
+  };
+
+  const handlePayExpenseShare = (expense: PayableExpense) => {
+    // Navigate to the new PayExpense page
+    navigate('/pay-expense', {
+      state: {
+        paymentTarget: { // Pass the necessary details
+          id: expense.expense_id,
+          description: expense.description,
+          amount: expense.amount_due
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -476,6 +525,64 @@ const StudentDashboard = () => {
               </DashboardCard>
             )}
 
+            {/* Payable Expense Shares Section */}
+            {dashboardData.payableExpenses && dashboardData.payableExpenses.length > 0 && (
+              <DashboardCard
+                title="Pending Expense Shares"
+                className="bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200 dark:border-neutral-700"
+              >
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Description</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Amount Due</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Expense Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                      {dashboardData.payableExpenses.map((expense) => (
+                        <tr key={expense.expense_id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-white">
+                            {expense.description}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
+                            ₱{formatAmount(expense.amount_due)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                            {new Date(expense.expense_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                              ${expense.status === 'pending_verification' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                              }`}
+                            >
+                              {expense.status === 'pending_verification' ? 'Verifying' : 'Due'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {expense.status === 'due' ? (
+                              <Button
+                                onClick={() => handlePayExpenseShare(expense)}
+                                variant="primary"
+                              >
+                                Pay Share
+                              </Button>
+                            ) : (
+                              <span className="text-neutral-500 dark:text-neutral-400 italic">Payment Pending</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </DashboardCard>
+            )}
+
             {/* Quick Actions */}
             <DashboardCard
               title="Quick Actions"
@@ -492,33 +599,11 @@ const StudentDashboard = () => {
                   <span>Make Payment</span>
                 </button>
                 <button
-                  onClick={() => navigate('/loans/my-loans')}
-                  disabled
-                  title="Loans are temporarily disabled while building up funds"
-                  className="flex items-center justify-center px-4 py-2 bg-neutral-400 dark:bg-neutral-600 text-white rounded-lg shadow-sm transition-colors space-x-2 cursor-not-allowed opacity-60"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
-                  <span>View Loans</span>
-                </button>
-                <button
-                  onClick={() => navigate('/loans/request')}
-                  disabled
-                  title="Loans are temporarily disabled while building up funds"
-                  className="flex items-center justify-center px-4 py-2 bg-neutral-400 dark:bg-neutral-600 text-white rounded-lg shadow-sm transition-colors space-x-2 cursor-not-allowed opacity-60"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Request Loan</span>
-                </button>
-                <button
                   onClick={() => navigate('/payment-history')}
                   className="flex items-center justify-center px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg shadow-sm transition-colors space-x-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                   </svg>
                   <span>Payment History</span>
                 </button>

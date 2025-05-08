@@ -17,6 +17,8 @@ interface Expense {
   unit?: string;
   type?: string;
   status?: string;
+  is_distributed?: boolean;
+  amount_per_student?: number | null;
 }
 
 interface ExpenseSummary {
@@ -68,7 +70,8 @@ const Expenses: React.FC = () => {
     type: 'actual',
     status: 'planned',
     expense_date: new Date().toISOString().split('T')[0],
-    receipt: null as File | null
+    receipt: null as File | null,
+    is_distributed: false
   });
 
   // Add state for delete confirmation
@@ -139,7 +142,8 @@ const Expenses: React.FC = () => {
       type: 'actual',
       status: 'planned',
       expense_date: new Date().toISOString().split('T')[0],
-      receipt: null
+      receipt: null,
+      is_distributed: false
     });
     setShowAddModal(true);
   };
@@ -154,7 +158,8 @@ const Expenses: React.FC = () => {
       type: expense.type || 'actual',
       status: expense.status || 'planned',
       expense_date: expense.expense_date ? expense.expense_date.split('T')[0] : new Date().toISOString().split('T')[0],
-      receipt: null
+      receipt: null,
+      is_distributed: expense.is_distributed || false
     });
     setShowAddModal(true);
   };
@@ -181,6 +186,7 @@ const Expenses: React.FC = () => {
       formDataToSend.append('type', formData.type);
       formDataToSend.append('status', formData.status);
       formDataToSend.append('expense_date', formData.expense_date);
+      formDataToSend.append('is_distributed', String(formData.is_distributed));
       if (formData.receipt) {
         formDataToSend.append('receipt', formData.receipt);
       }
@@ -217,7 +223,8 @@ const Expenses: React.FC = () => {
         type: 'actual',
         status: 'planned',
         expense_date: new Date().toISOString().split('T')[0],
-        receipt: null
+        receipt: null,
+        is_distributed: false
       });
       fetchExpenses();
     } catch (err) {
@@ -430,6 +437,8 @@ const Expenses: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Receipt</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Recorded By</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Distributed</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Amt/Student</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -470,6 +479,12 @@ const Expenses: React.FC = () => {
                             : 'Planned'}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                         {expense.is_distributed ? 'Yes' : 'No'}
+                       </td>
+                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                          {expense.is_distributed && expense.amount_per_student ? `₱${expense.amount_per_student.toFixed(2)}` : 'N/A'}
+                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
                         <button
                           onClick={() => openEditModal(expense)}
@@ -494,8 +509,8 @@ const Expenses: React.FC = () => {
 
         {/* Add/Edit Expense Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40">
+            <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">{editingExpense ? 'Edit Expense' : 'Add New Expense'}</h3>
@@ -648,6 +663,24 @@ const Expenses: React.FC = () => {
                       <a href={editingExpense.receipt_url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 mt-2 inline-block">View Current Receipt</a>
                     )}
                   </div>
+                  <div className="flex items-center mt-4">
+                    <input
+                      id="is_distributed"
+                      name="is_distributed"
+                      type="checkbox"
+                      checked={formData.is_distributed}
+                      onChange={(e) => setFormData(prev => ({ ...prev, is_distributed: e.target.checked }))}
+                      className="h-4 w-4 text-primary-600 border-neutral-300 dark:border-neutral-600 rounded focus:ring-primary-500 dark:bg-neutral-700"
+                    />
+                    <label htmlFor="is_distributed" className="ml-2 block text-sm text-neutral-900 dark:text-neutral-300">
+                      Distribute this expense among group members?
+                    </label>
+                  </div>
+                  {formData.is_distributed && (
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 pl-6">
+                          Amount per student will be calculated automatically (rounding up to the nearest peso).
+                      </p>
+                  )}
                   <div className="flex justify-end space-x-3 mt-6">
                     <button
                       type="button"

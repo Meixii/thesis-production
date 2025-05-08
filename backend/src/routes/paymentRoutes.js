@@ -21,7 +21,7 @@ const upload = multer({
 });
 
 // Submit payment route
-router.post('/',
+router.post('/submit',
   authenticateToken,
   upload.single('receipt'),
   submitPayment

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getApiUrl } from '../utils/api';
 import Navigation from '../components/ui/Navigation';
 import { useNavigate } from 'react-router-dom';
@@ -123,9 +123,6 @@ const PaymentHistory = () => {
             className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 transition-all hover:shadow-sm disabled:opacity-60"
             aria-label="Refresh payment history"
           >
-            <svg className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.635 19A9 9 0 1021 12.35" />
-            </svg>
             Refresh
           </button>
         </div>
@@ -135,7 +132,7 @@ const PaymentHistory = () => {
           <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-6">
             <div className="flex items-center">
               <div className="p-3 bg-primary/10 dark:bg-primary-dark/20 rounded-lg">
-                <svg className="w-6 h-6 text-primary dark:text-primary-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
