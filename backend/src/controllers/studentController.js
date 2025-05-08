@@ -184,11 +184,12 @@ const getDashboardData = async (req, res) => {
     // If we found a current thesis week
     if (currentWeekResult.rows.length > 0) {
       const thesisWeek = currentWeekResult.rows[0];
-      currentWeek.startDate = thesisWeek.start_date.toISOString();
-      currentWeek.endDate = thesisWeek.end_date.toISOString();
+      currentWeek.startDate = thesisWeek.start_date.toISOString().split('T')[0];
+      currentWeek.endDate = thesisWeek.end_date.toISOString().split('T')[0];
       currentWeek.weekNumber = thesisWeek.week_number;
+      currentWeek.amountDue = 10;
 
-      // Get contribution status for this week
+      // Get contribution status for this specific thesis week's start_date
       const weeklyContributionResult = await db.query(`
         SELECT 
           status,
@@ -203,10 +204,20 @@ const getDashboardData = async (req, res) => {
       if (weeklyContributionResult.rows.length > 0) {
         const contribution = weeklyContributionResult.rows[0];
         currentWeek.status = contribution.status;
-        currentWeek.amountPaid = contribution.amount_paid;
-        currentWeek.amountDue = contribution.base_contribution_due;
-        currentWeek.penalty = contribution.penalty_applied;
+        currentWeek.amountPaid = parseFloat(contribution.amount_paid) || 0;
+        currentWeek.amountDue = parseFloat(contribution.base_contribution_due) || 10;
+        currentWeek.penalty = parseFloat(contribution.penalty_applied) || 0;
+      } else {
+        // No weekly_contributions record exists for this user for this thesis_week
+        // Defaults are already set: status 'unpaid', amountDue 10, amountPaid 0, penalty 0
       }
+    } else {
+      // No current thesis_week defined in the thesis_weeks table for today's date
+      // The initialized defaults for currentWeek will be used.
+      // Consider if an error or specific message should be sent to frontend
+      // For now, it will appear as a generic unpaid week, which might be misleading.
+      // Or, we could set a specific status like 'no_active_week'.
+      // Let's keep it simple for now and rely on frontend to guide if no weekNumber.
     }
 
     // Get total contributions from verified payments
@@ -490,11 +501,208 @@ const getMyPaymentHistory = async (req, res) => {
   }
 };
 
+// New function to get all payable weeks for a student
+const getPayableWeeks = async (req, res) => {
+  const userId = req.user.userId;
+  const currentDate = new Date(); // Keep as Date object for comparisons
+  const currentDateString = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format for query
+
+  const client = await db.connect(); // Use a single client for potential updates
+
+  // Helper function to format Date objects as YYYY-MM-DD without timezone shift
+  const formatDate = (dateObj) => {
+    if (!dateObj || !(dateObj instanceof Date)) {
+        // Handle cases where the date might be null or not a Date object
+        // This might happen if pg returns strings for dates sometimes
+        if (typeof dateObj === 'string') return dateObj.split('T')[0]; // Assume correct format if string
+        return null; // Or throw an error, depending on desired handling
+    }
+    const year = dateObj.getFullYear();
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0'); // Month is 0-indexed
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  try {
+    const thesisWeeksResult = await client.query(
+      'SELECT id, week_number, start_date, end_date FROM thesis_weeks WHERE start_date <= $1 ORDER BY week_number ASC',
+      [currentDateString]
+    );
+
+    if (!thesisWeeksResult.rows.length) {
+      return res.json({ success: true, data: [], message: "No thesis weeks found or defined yet." });
+    }
+
+    const payableWeeks = [];
+    let penaltyAppliedInLoop = false; // Flag to track if we modified penalties
+
+    for (const tw of thesisWeeksResult.rows) {
+      let weekContribution = {
+        thesis_week_id: tw.id,
+        week_number: tw.week_number,
+        week_start_date: formatDate(tw.start_date),
+        week_end_date: formatDate(tw.end_date),
+        status: 'unpaid',
+        base_due: 10.00,
+        penalty_applied: 0.00,
+        amount_paid_for_week: 0.00,
+        total_due_for_week: 10.00,
+        amount_remaining_for_week: 10.00
+      };
+
+      const wcResult = await client.query(
+        'SELECT id, status, base_contribution_due, penalty_applied, amount_paid ' +
+        'FROM weekly_contributions WHERE user_id = $1 AND week_start_date = $2::DATE',
+        [userId, weekContribution.week_start_date]
+      );
+
+      let contributionId = null;
+      if (wcResult.rows.length > 0) {
+        const wc = wcResult.rows[0];
+        contributionId = wc.id;
+        weekContribution.status = wc.status;
+        weekContribution.base_due = parseFloat(wc.base_contribution_due);
+        weekContribution.penalty_applied = parseFloat(wc.penalty_applied) || 0;
+        weekContribution.amount_paid_for_week = parseFloat(wc.amount_paid) || 0;
+      } else {
+        // If no record exists, it implies unpaid for this past/current week
+        // We won't create it here, but calculate potential due/penalty
+        // A record will be created upon first payment attempt for this week
+      }
+
+      // --- Penalty Calculation Logic --- 
+      const weekEndDate = new Date(tw.end_date); // Use the actual date object for comparison
+      // Check if the week is overdue and still not paid/pending
+      if (currentDate > weekEndDate && weekContribution.status !== 'paid' && weekContribution.status !== 'pending_verification') {
+        const expectedPenalty = 1.00; // Flat 1 PHP penalty
+        // Only apply penalty if it hasn't been applied yet
+        if (weekContribution.penalty_applied < expectedPenalty) {
+          weekContribution.penalty_applied = expectedPenalty;
+          // Update status to 'late' if it was 'unpaid'
+          if (weekContribution.status === 'unpaid') {
+            weekContribution.status = 'late';
+          }
+
+          // If a contribution record exists, update it in the DB
+          if (contributionId) {
+            try {
+              await client.query(
+                'UPDATE weekly_contributions SET penalty_applied = $1, status = $2, updated_at = NOW() WHERE id = $3',
+                [weekContribution.penalty_applied, weekContribution.status, contributionId]
+              );
+              penaltyAppliedInLoop = true; // Indicate a change was made
+               console.log(`Applied penalty for user ${userId}, week ${weekContribution.week_number}`);
+            } catch (updateError) {
+              console.error(`Failed to update penalty for contribution ID ${contributionId}:`, updateError);
+              // Decide how to handle: continue without applying, or throw error?
+              // For now, log error and continue, the calculated value will be shown anyway.
+              weekContribution.penalty_applied = parseFloat(wcResult.rows[0].penalty_applied) || 0; // Revert if DB update failed
+              weekContribution.status = wcResult.rows[0].status; // Revert status too
+            }
+          } else {
+            // No record exists, status remains 'unpaid'/default, penalty is calculated but not saved yet.
+             if (weekContribution.status === 'unpaid') {
+               weekContribution.status = 'late'; // Mark as late conceptually even if no record
+             }
+          }
+        }
+      }
+      // --- End Penalty Logic --- 
+
+      // Recalculate final due/remaining amounts
+      weekContribution.total_due_for_week = weekContribution.base_due + weekContribution.penalty_applied;
+      weekContribution.amount_remaining_for_week = weekContribution.total_due_for_week - weekContribution.amount_paid_for_week;
+      weekContribution.amount_remaining_for_week = Math.max(0, weekContribution.amount_remaining_for_week);
+
+      // Only add if not fully paid (status check is sufficient)
+      if (weekContribution.status !== 'paid') {
+         payableWeeks.push(weekContribution);
+      }
+    }
+
+    // Log the data being sent to the frontend for debugging
+    console.log("Sending payableWeeks data:", JSON.stringify(payableWeeks, null, 2));
+
+    res.json({ success: true, data: payableWeeks });
+
+  } catch (err) {
+    console.error('Get payable weeks error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch payable weeks.' });
+  } finally {
+      client.release(); // Release client connection
+  }
+};
+
+// New function to get payable distributed expenses for the student
+const getPayableExpenses = async (req, res) => {
+  const userId = req.user.userId;
+
+  try {
+    // Get user's group ID
+    const userResult = await db.query('SELECT group_id FROM users WHERE id = $1', [userId]);
+    if (!userResult.rows.length || !userResult.rows[0].group_id) {
+      return res.status(400).json({ success: false, error: 'User not found or not assigned to a group.' });
+    }
+    const groupId = userResult.rows[0].group_id;
+
+    // Find expenses marked as distributed for the user's group
+    // for which the user has NOT made a verified payment yet.
+    const expensesResult = await db.query(
+      `SELECT 
+         e.id AS expense_id,
+         e.description,
+         e.amount_per_student,
+         e.expense_date
+       FROM expenses e
+       WHERE e.group_id = $1
+       AND e.is_distributed = TRUE
+       AND e.amount_per_student IS NOT NULL
+       AND e.amount_per_student > 0
+       AND NOT EXISTS (
+         SELECT 1
+         FROM expense_payments ep
+         JOIN payments p ON ep.payment_id = p.id
+         WHERE ep.expense_id = e.id
+         AND ep.user_id = $2
+         AND p.status = 'verified' -- Only count verified payments
+       )
+       ORDER BY e.expense_date DESC`,
+      [groupId, userId]
+    );
+
+    // Also fetch any pending payments for these expenses to inform the user
+    const pendingExpensePaymentResult = await db.query(
+        `SELECT ep.expense_id
+         FROM expense_payments ep
+         JOIN payments p ON ep.payment_id = p.id
+         WHERE ep.user_id = $1 AND p.status = 'pending_verification'`,
+         [userId]
+    );
+    const pendingExpenseIds = new Set(pendingExpensePaymentResult.rows.map(r => r.expense_id));
+
+    const payableExpenses = expensesResult.rows.map(exp => ({
+      expense_id: exp.expense_id,
+      description: exp.description,
+      amount_due: parseFloat(exp.amount_per_student),
+      expense_date: exp.expense_date,
+      status: pendingExpenseIds.has(exp.expense_id) ? 'pending_verification' : 'due'
+    }));
+
+    res.json({ success: true, data: payableExpenses });
+
+  } catch (err) {
+    console.error('Get payable expenses error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch payable expenses.' });
+  }
+};
+
 module.exports = {
   joinGroup,
   getDashboardData,
   getMyDues,
   getMyDueDetails,
   payDue,
-  getMyPaymentHistory
+  getMyPaymentHistory,
+  getPayableWeeks,
+  getPayableExpenses
 }; 
