@@ -552,10 +552,79 @@ Update #1
 - Added middleware for authentication
 (Do not put any recent updates below here)
 ---
-PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES ASCENDING
+PLEASE DO NOT ADD BACKEND UPDATES HERE, PUT THE UPDATES DESCENDING ORDER
 
 ## Frontend
-(Always make the recent update ASECENDING after this)
+(Always make the recent update DESCENDING ORDER after this)
+
+Update #91
+- Fixed numeric type handling in expenses:
+  - Added proper type casting in PostgreSQL query
+  - Added safe number formatting in frontend
+  - Fixed "amount.toFixed is not a function" error
+  - Added fallback values for null/undefined amounts
+
+Update #90
+- Fixed group expenses display in student dashboard:
+  - Fixed recorded_by field to properly show FC name
+  - Added proper JOIN with users table for expense recorder info
+  - Enhanced expenses table styling and layout
+  - Added recorded by column to expenses table
+
+Update #89
+- Fixed thesis week calculation in student dashboard:
+  - Now properly uses thesis_weeks table to determine current week
+  - Fixed incorrect week number display
+  - Added group expenses view to student dashboard
+  - Improved week status accuracy by using actual thesis week dates
+
+Update #88
+- Improved UI elements across the app:
+  - Enhanced refresh buttons with better styling and consistent design
+  - Simplified payment method display with colored badges (blue for GCash, green for Maya, neutral for Cash)
+  - Added week number display to Current Week Status in dashboard
+  - Fixed refresh button icons and alignment
+
+Update #87
+- Enhanced StudentDashboard:
+  - Added refresh button to Profile section
+  - Temporarily disabled loan features (View Loans and Request Loan)
+  - Added tooltips explaining loan feature unavailability
+
+Update #86
+- Enhanced Payment History page UI/UX:
+  - Added search functionality for reference ID, purpose, and amount
+  - Added filters for payment method and status
+  - Improved summary cards with icons and better visual hierarchy
+  - Enhanced table styling with better spacing and hover effects
+  - Added loading state for receipt modal
+  - Improved empty and error states
+  - Made the page fully responsive
+
+Update #85
+- The VERIFYING status in the Student Dashboard now appears in a distinct blue color for better visibility and clarity.
+
+Update #854
+- Fixed issue in Payment page where users could submit multiple payments for the same week:
+  - Added loading state while fetching current week payment status
+  - Payment form is only shown if no payment is pending or paid for the week
+  - Added a final check in handleSubmit to prevent duplicate submissions
+
+Update #83
+- Added modal for viewing payment receipts inline in VerifyPayments page:
+  - Finance Coordinators can now view receipts directly in a modal without opening a new tab
+  - Improved workflow and user experience for payment verification
+
+Update #82
+- Improved payment method selection UI in Payment page:
+  - Added icons for GCash, Maya, and Cash
+  - Added checkmark and stronger highlight for selected method
+  - Improved accessibility with aria-labels
+
+Update #81
+- Removed unnecessary hover effects from stat cards in the Student Dashboard to avoid confusion about clickability.
+- Stat cards now use a static style unless an onClick is provided.
+- Reviewed and confirmed the Make Payment button in Quick Actions is visually prominent and navigates to the payment page.
 
 Update #80
 - Added 'danger' (red) variant to Button component for destructive actions.

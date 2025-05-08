@@ -10,6 +10,7 @@ import VerifyEmailInfo from './components/auth/VerifyEmailInfo';
 import Payment from './pages/Payment';
 import LoanRequest from './pages/LoanRequest';
 import MyLoans from './pages/MyLoans';
+import PaymentHistory from './pages/PaymentHistory';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import Profile from './pages/Profile';
@@ -129,6 +130,16 @@ function App() {
 
           <Route path="/loans/request" element={<LoanRequest />} />
           <Route path="/loans/my-loans" element={<MyLoans />} />
+          <Route
+            path="/payment-history"
+            element={
+              <ProtectedRoute role="student">
+                <RequireGroup>
+                  <PaymentHistory />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/group-settings" element={<GroupSettings />} />

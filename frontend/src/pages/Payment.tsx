@@ -30,11 +30,12 @@ const Payment = () => {
   const [fileError, setFileError] = useState('');
   const [currentWeekStatus, setCurrentWeekStatus] = useState<string>('');
   const qrImageRef = useRef<HTMLImageElement>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
 
   // Check if user belongs to a group and fetch current week status
   useEffect(() => {
     const checkUserGroup = async () => {
-      setLoading(true);
+      setStatusLoading(true);
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -65,7 +66,7 @@ const Payment = () => {
       } catch (err) {
         console.error('Error checking user group:', err);
       } finally {
-        setLoading(false);
+        setStatusLoading(false);
       }
     };
 
@@ -124,6 +125,13 @@ const Payment = () => {
     setLoading(true);
     setError('');
     setFileError('');
+
+    // Prevent submission if payment is already pending or paid
+    if (currentWeekStatus === 'pending_verification' || currentWeekStatus === 'paid') {
+      setError('You have already submitted a payment for this week.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
@@ -236,6 +244,18 @@ const Payment = () => {
     );
   }
 
+  // Show loading spinner while fetching status
+  if (statusLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-neutral-900 dark:to-neutral-800 px-4">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 mb-4"></div>
+          <p className="text-neutral-600 dark:text-neutral-400">Loading payment status...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-neutral-900 dark:to-neutral-800 py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -269,16 +289,40 @@ const Payment = () => {
                       key={method}
                       type="button"
                       onClick={() => handleMethodSelect(method)}
-                      className={`p-5 rounded-xl border-2 transition-all ${
+                      className={`relative p-5 rounded-xl border-2 transition-all flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                         selectedMethod === method
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-400 ring-2 ring-blue-300 dark:ring-blue-700 shadow-md'
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:border-blue-400 ring-2 ring-blue-300 dark:ring-blue-700 shadow-lg'
                           : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 shadow-sm'
                       }`}
+                      aria-label={`Select ${method} as payment method`}
                     >
+                      {/* Icon for each method */}
+                      <div className="mb-2 flex items-center justify-center">
+                        {method === 'gcash' && (
+                          <img src="/images/gcash-logo.png" alt="GCash" className="w-24 h-8 object-contain" />
+                        )}
+                        {method === 'maya' && (
+                          <img src="/images/maya-logo.png" alt="Maya" className="w-24 h-8 object-contain" />
+                        )}
+                        {method === 'cash' && (
+                          <svg className="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <rect x="2" y="7" width="20" height="10" rx="2" fill="currentColor" className="opacity-10" />
+                            <rect x="2" y="7" width="20" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                          </svg>
+                        )}
+                      </div>
                       <div className="text-center">
                         <span className="block text-xl font-semibold text-gray-900 dark:text-white capitalize">
                           {method}
                         </span>
+                        {selectedMethod === method && (
+                          <span className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-1 shadow-lg">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        )}
                       </div>
                     </button>
                   ))}

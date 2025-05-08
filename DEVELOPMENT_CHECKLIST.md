@@ -129,15 +129,15 @@
 - [x] **Frontend:** Display list of recorded expenses.
 
 ### E. Loan Management (Approval & Tracking)
-- [ ] **Backend:** API endpoint to get pending intra-group loan requests (`/api/groups/:groupId/loans/pending/intra`).
-- [ ] **Frontend:** Create UI section for pending intra-group loan requests.
-- [ ] **Frontend:** Display request details (Student, Amount, Date).
-- [ ] **Frontend:** Provide "Approve" / "Deny" buttons.
-- [ ] **Backend:** API endpoint to approve/deny intra-group loan (`/api/loans/:loanId/approve`, `/api/loans/:loanId/reject`).
-    - [ ] Update `loans` status, record approver/denier, timestamp.
-- [ ] **Frontend:** Implement API calls for approve/deny actions.
-- [ ] **Backend:** API endpoint for FC to mark a loan as "Disbursed" (`/api/loans/:loanId/disburse`).
-- [ ] **Frontend:** Button/action for FC to mark loan as disbursed (after giving cash/transfer).
+- [x] **Backend:** API endpoint to get pending intra-group loan requests (`/api/groups/:groupId/loans/pending/intra`).
+- [x] **Frontend:** Create UI section for pending intra-group loan requests.
+- [x] **Frontend:** Display request details (Student, Amount, Date).
+- [x] **Frontend:** Provide "Approve" / "Deny" buttons.
+- [x] **Backend:** API endpoint to approve/deny intra-group loan (`/api/loans/:loanId/approve`, `/api/loans/:loanId/reject`).
+    - [x] Update `loans` status, record approver/denier, timestamp.
+- [x] **Frontend:** Implement API calls for approve/deny actions.
+- [x] **Backend:** API endpoint for FC to mark a loan as "Disbursed" (`/api/loans/:loanId/disburse`).
+- [x] **Frontend:** Button/action for FC to mark loan as disbursed (after giving cash/transfer).
 - [ ] **Backend:** API endpoint to record loan repayment (likely part of payment verification flow if paid via app, or manual entry for cash repayment?) *Clarify cash loan repayment flow*. API: `/api/loans/:loanId/record-repayment` (manual entry by FC).
 - [ ] **Frontend:** UI for FC to manually record a cash loan repayment.
 - [ ] **Inter-Group Loans:**

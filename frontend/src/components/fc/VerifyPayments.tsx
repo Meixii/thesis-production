@@ -3,6 +3,7 @@ import { getApiUrl } from '../../utils/api';
 import Navigation from '../ui/Navigation';
 import { useToast } from '../../context/ToastContext';
 import Card from '../ui/Card';
+import Modal from '../ui/Modal';
 
 interface PendingPayment {
   payment_id: number;
@@ -38,6 +39,7 @@ const VerifyPayments: React.FC = () => {
     by_method: { gcash: 0, maya: 0, cash: 0 }
   });
   const { showToast } = useToast();
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
 
   // Fetch groupId from user profile
   const fetchPendingPayments = async () => {
@@ -304,18 +306,17 @@ const VerifyPayments: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">{p.reference_id || 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
                         {p.receipt_url ? (
-                          <a 
-                            href={p.receipt_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1"
+                          <button
+                            type="button"
+                            onClick={() => setViewReceiptUrl(p.receipt_url!)}
+                            className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 underline"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                             View
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-neutral-500 dark:text-neutral-400">N/A</span>
                         )}
@@ -377,6 +378,19 @@ const VerifyPayments: React.FC = () => {
             </div>
           </Card>
         )}
+
+        {/* Receipt Modal */}
+        <Modal isOpen={!!viewReceiptUrl} onClose={() => setViewReceiptUrl(null)} title="View Receipt" size="md">
+          {viewReceiptUrl && (
+            <div className="flex flex-col items-center justify-center">
+              <img
+                src={viewReceiptUrl}
+                alt="Payment Receipt"
+                className="max-w-full max-h-[70vh] rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-md"
+              />
+            </div>
+          )}
+        </Modal>
       </div>
     </div>
   );

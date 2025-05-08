@@ -114,7 +114,7 @@ const joinGroup = async (req, res) => {
  * @param {Object} res - Express response object
  */
 const getDashboardData = async (req, res) => {
-  const userId = req.user.userId; // Changed from req.user.id to req.user.userId
+  const userId = req.user.userId;
 
   try {
     // Get user profile
@@ -161,55 +161,70 @@ const getDashboardData = async (req, res) => {
       }
     }
 
-    // Get current week's data
+    // Get current thesis week from thesis_weeks table
     const currentDate = new Date();
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Start from Sunday
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const currentWeekResult = await db.query(`
+      SELECT id, week_number, start_date, end_date
+      FROM thesis_weeks
+      WHERE $1 BETWEEN start_date AND end_date
+      LIMIT 1
+    `, [currentDate]);
 
-    const weeklyContributionResult = await db.query(`
-      SELECT 
-        status,
-        base_contribution_due,
-        penalty_applied,
-        amount_paid
-      FROM weekly_contributions
-      WHERE user_id = $1 
-      AND week_start_date = $2
-    `, [userId, startOfWeek]);
-
-    const currentWeek = {
-      startDate: startOfWeek.toISOString(),
-      endDate: endOfWeek.toISOString(),
+    // Initialize current week data
+    let currentWeek = {
+      startDate: null,
+      endDate: null,
       status: 'unpaid',
       amountPaid: 0,
       amountDue: 10,
-      penalty: 0
+      penalty: 0,
+      weekNumber: null
     };
 
-    if (weeklyContributionResult.rows.length > 0) {
-      const contribution = weeklyContributionResult.rows[0];
-      currentWeek.status = contribution.status;
-      currentWeek.amountPaid = contribution.amount_paid;
-      currentWeek.amountDue = contribution.base_contribution_due;
-      currentWeek.penalty = contribution.penalty_applied;
+    // If we found a current thesis week
+    if (currentWeekResult.rows.length > 0) {
+      const thesisWeek = currentWeekResult.rows[0];
+      currentWeek.startDate = thesisWeek.start_date.toISOString();
+      currentWeek.endDate = thesisWeek.end_date.toISOString();
+      currentWeek.weekNumber = thesisWeek.week_number;
+
+      // Get contribution status for this week
+      const weeklyContributionResult = await db.query(`
+        SELECT 
+          status,
+          base_contribution_due,
+          penalty_applied,
+          amount_paid
+        FROM weekly_contributions
+        WHERE user_id = $1 
+        AND week_start_date = $2
+      `, [userId, thesisWeek.start_date]);
+
+      if (weeklyContributionResult.rows.length > 0) {
+        const contribution = weeklyContributionResult.rows[0];
+        currentWeek.status = contribution.status;
+        currentWeek.amountPaid = contribution.amount_paid;
+        currentWeek.amountDue = contribution.base_contribution_due;
+        currentWeek.penalty = contribution.penalty_applied;
+      }
     }
 
-    // Get total contributions and outstanding balance
-    const financesResult = await db.query(`
-      SELECT 
-        COALESCE(SUM(amount_paid), 0) as total_contributed,
-        COALESCE(SUM(
-          CASE 
-            WHEN status = 'unpaid' OR status = 'late' 
-            THEN base_contribution_due + penalty_applied - amount_paid
-            ELSE 0
-          END
-        ), 0) as outstanding_balance
+    // Get total contributions from verified payments
+    const totalContributedResult = await db.query(`
+      SELECT COALESCE(SUM(amount), 0) as total_contributed
+      FROM payments
+      WHERE user_id = $1 AND status = 'verified'
+    `, [userId]);
+
+    // Get outstanding balance from weekly_contributions
+    const outstandingBalanceResult = await db.query(`
+      SELECT COALESCE(SUM(
+        CASE 
+          WHEN status = 'unpaid' OR status = 'late' 
+          THEN base_contribution_due + penalty_applied - amount_paid
+          ELSE 0
+        END
+      ), 0) as outstanding_balance
       FROM weekly_contributions
       WHERE user_id = $1
     `, [userId]);
@@ -233,6 +248,36 @@ const getDashboardData = async (req, res) => {
       ORDER BY created_at DESC
     `, [userId]);
 
+    // Get group expenses if user has a group
+    let expenses = [];
+    if (user.groupId) {
+      const expensesResult = await db.query(`
+        SELECT 
+          e.id, 
+          e.description, 
+          CAST(e.amount AS FLOAT) as amount,
+          e.category, 
+          e.expense_date, 
+          e.receipt_url, 
+          e.created_at, 
+          u.first_name || ' ' || u.last_name as recorded_by_name,
+          CAST(COALESCE(e.quantity, 1) AS FLOAT) as quantity,
+          e.unit, 
+          e.type, 
+          e.status
+        FROM expenses e
+        LEFT JOIN users u ON e.recorded_by_user_id = u.id
+        WHERE e.group_id = $1
+        ORDER BY e.expense_date DESC
+        LIMIT 10
+      `, [user.groupId]);
+      expenses = expensesResult.rows.map(row => ({
+        ...row,
+        amount: parseFloat(row.amount),
+        quantity: parseFloat(row.quantity || 1)
+      }));
+    }
+
     res.json({
       success: true,
       data: {
@@ -240,10 +285,11 @@ const getDashboardData = async (req, res) => {
         group,
         currentWeek,
         finances: {
-          totalContributed: financesResult.rows[0].total_contributed,
-          outstandingBalance: financesResult.rows[0].outstanding_balance
+          totalContributed: totalContributedResult.rows[0].total_contributed,
+          outstandingBalance: outstandingBalanceResult.rows[0].outstanding_balance
         },
-        activeLoans: loansResult.rows
+        activeLoans: loansResult.rows,
+        expenses: expenses
       }
     });
   } catch (err) {
@@ -424,10 +470,31 @@ const payDue = async (req, res) => {
   }
 };
 
+// Get all payments for the authenticated user (payment history)
+const getMyPaymentHistory = async (req, res) => {
+  const userId = req.user.userId;
+  try {
+    const result = await db.query(`
+      SELECT id, amount, method, status, reference_id, receipt_url, created_at, verified_at, purpose
+      FROM payments
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+    `, [userId]);
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (err) {
+    console.error('getMyPaymentHistory error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+};
+
 module.exports = {
   joinGroup,
   getDashboardData,
   getMyDues,
   getMyDueDetails,
-  payDue
+  payDue,
+  getMyPaymentHistory
 }; 

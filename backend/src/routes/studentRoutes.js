@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
-const { joinGroup, getDashboardData, getMyDues, getMyDueDetails, payDue } = require('../controllers/studentController');
+const { joinGroup, getDashboardData, getMyDues, getMyDueDetails, payDue, getMyPaymentHistory } = require('../controllers/studentController');
 const multer = require('multer');
 
 // Configure multer for memory storage (5MB limit, images only)
@@ -34,5 +34,8 @@ router.get('/dues/:dueId', getMyDueDetails);
 
 // Submit a payment for a due
 router.post('/dues/:dueId/pay', upload.single('receipt'), payDue);
+
+// Get payment history for the authenticated student
+router.get('/payments/my-history', getMyPaymentHistory);
 
 module.exports = router; 
