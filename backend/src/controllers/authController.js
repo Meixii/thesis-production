@@ -483,6 +483,50 @@ const updatePassword = async (req, res) => {
   }
 };
 
+// Update profile for all roles (student, finance_coordinator, admin)
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { firstName, middleName, lastName, suffix } = req.body;
+
+    if (!firstName || !lastName) {
+      return res.status(400).json({ error: 'First name and last name are required' });
+    }
+
+    const result = await db.query(
+      `UPDATE users 
+       SET first_name = $1,
+           middle_name = $2,
+           last_name = $3,
+           suffix = $4
+       WHERE id = $5
+       RETURNING id, first_name, middle_name, last_name, suffix, email, role, group_id, profile_picture_url, email_verified`,
+      [firstName, middleName || null, lastName, suffix || null, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      firstName: user.first_name,
+      middleName: user.middle_name,
+      lastName: user.last_name,
+      suffix: user.suffix,
+      email: user.email,
+      role: user.role,
+      groupId: user.group_id,
+      profilePictureUrl: user.profile_picture_url,
+      emailVerified: user.email_verified
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Server error while updating profile' });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -495,4 +539,5 @@ module.exports = {
   updatePassword,
   uploadProfilePicture,
   profilePicUpload,
+  updateProfile,
 };

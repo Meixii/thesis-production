@@ -61,6 +61,14 @@ const generateLoanRepaymentFilename = (loanId, userId, date = new Date()) => {
   return `loanrepayments/repayment_${loanId}_${userId}_${formattedDate}`;
 };
 
+// Add this function for group QR code filenames
+const generateGroupQrFilename = (groupCode, method, date = new Date()) => {
+  const formattedDate = formatDateForFilename(date);
+  const safeGroupCode = (groupCode || 'GROUP').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const safeMethod = (method || 'METHOD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return `${safeGroupCode}_${safeMethod}_${formattedDate}`;
+};
+
 /**
  * Upload a file to Cloudinary
  * @param {Object} file - The file object from multer
@@ -73,7 +81,9 @@ const uploadToCloudinary = async (file, metadata = {}) => {
     const dataURI = `data:${file.mimetype};base64,${b64}`;
 
     let publicId;
-    if (metadata.loanRepayment && metadata.loanId && metadata.userId) {
+    if (metadata.groupQr && metadata.groupCode && metadata.method) {
+      publicId = `group_qr/${generateGroupQrFilename(metadata.groupCode, metadata.method)}`;
+    } else if (metadata.loanRepayment && metadata.loanId && metadata.userId) {
       publicId = generateLoanRepaymentFilename(metadata.loanId, metadata.userId);
     } else if (metadata.expenseReceipt && metadata.category && metadata.amount && metadata.quantity && metadata.unit) {
       publicId = `expenses/${generateExpenseReceiptFilename(metadata.category, metadata.amount, metadata.quantity, metadata.unit)}`;
@@ -109,4 +119,5 @@ module.exports = {
   formatProfilePicFilename,
   generateExpenseReceiptFilename,
   generateLoanRepaymentFilename,
+  generateGroupQrFilename,
 }; 

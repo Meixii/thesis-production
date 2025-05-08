@@ -150,7 +150,7 @@ const getStats = async (req, res) => {
 
     // Get total students
     const totalStudentsResult = await db.query(
-      'SELECT COUNT(*) FROM users WHERE group_id = $1 AND role = \'student\'',
+      'SELECT COUNT(*) FROM users WHERE group_id = $1 AND role IN (\'student\', \'finance_coordinator\')',
       [groupId]
     );
 
@@ -277,7 +277,7 @@ const createDue = async (req, res) => {
 
       // Get all active users in the group
       const usersResult = await client.query(
-        'SELECT id FROM users WHERE group_id = $1 AND is_active = true AND role = \'student\'',
+        'SELECT id FROM users WHERE group_id = $1 AND is_active = true AND role IN (\'student\', \'finance_coordinator\')',
         [groupId]
       );
 
@@ -295,7 +295,7 @@ const createDue = async (req, res) => {
         CREATE OR REPLACE FUNCTION assign_dues_to_new_user()
         RETURNS TRIGGER AS $$
         BEGIN
-          IF NEW.role = 'student' AND NEW.group_id IS NOT NULL THEN
+          IF NEW.role IN ('student', 'finance_coordinator') AND NEW.group_id IS NOT NULL THEN
             INSERT INTO user_dues (due_id, user_id, status)
             SELECT d.id, NEW.id, 'pending'
             FROM dues d
@@ -363,6 +363,7 @@ const getDueStatus = async (req, res) => {
          d.id, d.title, d.description, d.total_amount_due, d.due_date,
          u.id as user_id,
          CONCAT(u.first_name, ' ', u.last_name) as user_name,
+         ud.id as user_due_id,
          ud.status,
          ud.amount_paid,
          ud.last_payment_date
@@ -378,6 +379,36 @@ const getDueStatus = async (req, res) => {
       return res.status(404).json({ error: 'Due not found' });
     }
 
+    // For each user_due, fetch payment history
+    const userStatuses = await Promise.all(result.rows.map(async row => {
+      const paymentsResult = await db.query(
+        `SELECT p.id, p.amount, p.method, p.status, p.reference_id, p.receipt_url, p.created_at, p.verified_at, pad.amount_allocated
+         FROM payments p
+         JOIN payment_allocations_dues pad ON pad.payment_id = p.id
+         WHERE pad.user_due_id = $1 AND p.user_id = $2
+         ORDER BY p.created_at DESC`,
+        [row.user_due_id, row.user_id]
+      );
+      return {
+        user_id: row.user_id,
+        user_name: row.user_name,
+        status: row.status,
+        amount_paid: row.amount_paid,
+        last_payment_date: row.last_payment_date,
+        payments: paymentsResult.rows.map(p => ({
+          id: p.id,
+          amount: p.amount,
+          method: p.method,
+          status: p.status,
+          reference_id: p.reference_id,
+          receipt_url: p.receipt_url,
+          created_at: p.created_at,
+          verified_at: p.verified_at,
+          amount_allocated: p.amount_allocated
+        }))
+      };
+    }));
+
     // Restructure the data
     const dueDetails = {
       id: result.rows[0].id,
@@ -385,13 +416,7 @@ const getDueStatus = async (req, res) => {
       description: result.rows[0].description,
       total_amount_due: result.rows[0].total_amount_due,
       due_date: result.rows[0].due_date,
-      user_statuses: result.rows.map(row => ({
-        user_id: row.user_id,
-        user_name: row.user_name,
-        status: row.status,
-        amount_paid: row.amount_paid,
-        last_payment_date: row.last_payment_date
-      }))
+      user_statuses: userStatuses
     };
 
     res.json(dueDetails);
@@ -755,7 +780,7 @@ const exportSummaryReport = async (req, res) => {
           LEFT JOIN user_dues ud ON u.id = ud.user_id
           LEFT JOIN dues d ON ud.due_id = d.id
           LEFT JOIN payments p ON ud.id = p.user_due_id AND p.status = 'verified'
-          WHERE u.group_id = $1 AND u.role = 'student'
+          WHERE u.group_id = $1 AND u.role IN ('student', 'finance_coordinator')
           GROUP BY u.id, u.last_name, u.first_name
           ORDER BY u.last_name, u.first_name
         `;
@@ -849,7 +874,7 @@ const exportStudentList = async (req, res) => {
       LEFT JOIN user_dues ud ON u.id = ud.user_id
       LEFT JOIN dues d ON ud.due_id = d.id
       LEFT JOIN payments p ON ud.id = p.user_due_id AND p.status = 'verified'
-      WHERE u.group_id = $1 AND u.role = 'student'
+      WHERE u.group_id = $1 AND u.role IN ('student', 'finance_coordinator')
       GROUP BY u.id, u.last_name, u.first_name, u.email
       ${details.includes('contact_info') ? ', u.contact_number, u.address' : ''}
       ORDER BY u.last_name, u.first_name
@@ -974,7 +999,7 @@ const getGroupDetails = async (req, res) => {
          g.id,
          g.name,
          g.description,
-         (SELECT COUNT(*) FROM users WHERE group_id = g.id AND role = 'student') as total_students,
+         (SELECT COUNT(*) FROM users WHERE group_id = g.id AND role IN ('student', 'finance_coordinator')) as total_students,
          (SELECT COUNT(*) FROM dues WHERE group_id = g.id) as total_dues,
          COALESCE(
            (SELECT SUM(pad.amount_allocated)

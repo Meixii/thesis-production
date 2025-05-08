@@ -46,12 +46,39 @@ interface ExpenseChartData {
   color: string;
 }
 
+interface Expense {
+  id: number;
+  description: string;
+  amount: number;
+  category: string;
+  expense_date: string;
+  receipt_url: string | null;
+  created_at: string;
+  recorded_by: string;
+  quantity?: number;
+  unit?: string;
+  type?: string;
+  status?: string;
+  is_distributed?: boolean;
+  amount_per_student?: number;
+}
+
+interface PayableExpense {
+  expense_id: number;
+  description: string;
+  amount_due: number;
+  expense_date: string;
+  status: 'due' | 'pending_verification';
+}
+
 const FCDashboard = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dashboardData, setDashboardData] = useState<FCDashboardData | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [payableExpenses, setPayableExpenses] = useState<PayableExpense[]>([]);
 
   // Add state for reset confirmation modal and loading state for reset action
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
@@ -168,6 +195,32 @@ const FCDashboard = () => {
     fetchDashboardData();
   }, [navigate, showToast]);
 
+  // Fetch payable expenses for FC
+  useEffect(() => {
+    const fetchPayableExpenses = async (groupId: number) => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(getApiUrl(`/api/groups/${groupId}/payable-expenses`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPayableExpenses(data.data || []);
+        } else {
+          setPayableExpenses([]);
+        }
+      } catch (err) {
+        setPayableExpenses([]);
+      }
+    };
+    if (dashboardData?.group.id) {
+      fetchPayableExpenses(dashboardData.group.id);
+    }
+  }, [dashboardData?.group.id]);
+
   // Add handler function for resetting contributions
   const handleResetContributions = async () => {
     if (!dashboardData?.group.id) {
@@ -254,6 +307,24 @@ const FCDashboard = () => {
     );
     
     return { labels, collections };
+  };
+
+  const formatAmount = (amount: number | string | null | undefined): string => {
+    if (amount === null || amount === undefined) return '0.00';
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+  };
+
+  const handlePayExpenseShare = (expense: PayableExpense) => {
+    navigate('/pay-expense', {
+      state: {
+        paymentTarget: {
+          id: expense.expense_id,
+          description: expense.description,
+          amount: expense.amount_due
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -426,119 +497,164 @@ const FCDashboard = () => {
           </DashboardCard>
         </div>
 
+        {/* Recent Group Expenses Table */}
+        {expenses.length > 0 && (
+          <DashboardCard
+            title="Recent Group Expenses"
+            className="bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200 dark:border-neutral-700 mb-6"
+          >
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Description</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Recorded By</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Receipt</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                  {expenses.map((expense) => (
+                    <tr key={expense.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-white">
+                        {expense.description}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
+                        ₱{expense.amount.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                          {expense.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                        {new Date(expense.expense_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                          ${expense.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : expense.status === 'planned' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : expense.status === 'pending_receipt' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-300'
+                          }`}
+                        >
+                          {expense.status ? expense.status.replace('_', ' ') : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                        {expense.recorded_by || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {expense.receipt_url ? (
+                          <a
+                            href={expense.receipt_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <span className="text-neutral-500 dark:text-neutral-400">N/A</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DashboardCard>
+        )}
+
+        {/* Pending Expense Shares */}
+        {payableExpenses.length > 0 ? (
+          <DashboardCard
+            title="Pending Expense Shares"
+            className="bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200 dark:border-neutral-700 mb-6"
+          >
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Description</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Amount Due</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Expense Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                  {payableExpenses.map((expense) => (
+                    <tr key={expense.expense_id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-white">
+                        {expense.description}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-900 dark:text-white">
+                        ₱{formatAmount(expense.amount_due)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400">
+                        {new Date(expense.expense_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                          ${expense.status === 'pending_verification' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          }`}
+                        >
+                          {expense.status === 'pending_verification' ? 'Verifying' : 'Due'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {expense.status === 'due' ? (
+                          <Button
+                            onClick={() => handlePayExpenseShare(expense)}
+                            variant="primary"
+                          >
+                            Pay Share
+                          </Button>
+                        ) : (
+                          <span className="text-neutral-500 dark:text-neutral-400 italic">Payment Pending</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DashboardCard>
+        ) : (
+          <DashboardCard
+            title="Pending Expense Shares"
+            className="bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200 dark:border-neutral-700 mb-6"
+          >
+            <div className="p-6 text-center text-neutral-500 dark:text-neutral-400">
+              No distributed expenses to pay at this time.
+            </div>
+          </DashboardCard>
+        )}
+
         {/* Quick Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Members Management */}
-          <DashboardCard title="Member Management">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Make Payment (FC only) */}
+          <DashboardCard title="Make Payment">
             <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-              View and manage all members of your group
+              Pay your weekly contribution as a Finance Coordinator
             </p>
             <Button 
               variant="primary" 
               className="w-full"
-              onClick={() => navigate('/members')}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              View Members
-            </Button>
-          </DashboardCard>
-
-          {/* Payment Verification */}
-          <DashboardCard title="Payment Verification">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-              Verify pending payments from members
-            </p>
-            <Button 
-              variant="primary" 
-              className="w-full"
-              onClick={() => navigate('/verify-payments')}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              Verify Payments
-            </Button>
-          </DashboardCard>
-
-          {/* Expense Management */}
-          <DashboardCard title="Expenses">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-              Record and view group expenses
-            </p>
-            <Button 
-              variant="primary" 
-              className="w-full"
-              onClick={() => navigate('/expenses')}
+              onClick={() => navigate('/payment')}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              Manage Expenses
+              Make Payment
             </Button>
           </DashboardCard>
         </div>
-
-        {/* Loan Management Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Group Settings */}
-          <DashboardCard title="Group Settings">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-              Configure your group's budget, limits, and invitation code
-            </p>
-            <Button 
-              variant="primary" 
-              className="w-full"
-              onClick={() => navigate('/group-settings')}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Manage Settings
-            </Button>
-          </DashboardCard>
-
-          {/* Export Reports */}
-          <DashboardCard title="Export Reports">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-              Generate and download financial reports
-            </p>
-            <Button 
-              variant="primary" 
-              className="w-full"
-              onClick={() => showToast('Report export functionality coming soon!', 'info')}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export Reports
-            </Button>
-          </DashboardCard>
-        </div>
-
-        {/* Advanced Group Actions Card */}
-        <DashboardCard
-          title="Advanced Group Actions"
-          className="mb-6"
-        >
-          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-            Perform administrative actions for your group. These actions are irreversible.
-          </p>
-          <Button
-            variant="danger"
-            className="w-full"
-            onClick={() => setShowResetConfirmModal(true)}
-            isLoading={isResetting}
-            disabled={isResetting}
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            {isResetting ? 'Resetting...' : 'Reset All Weekly Contributions'}
-          </Button>
-        </DashboardCard>
 
       </main>
 

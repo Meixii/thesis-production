@@ -121,4 +121,7 @@ router.get('/google/callback',
 // Profile picture upload route
 router.post('/upload-profile-picture', authenticateToken, profilePicUpload.single('profilePic'), authController.uploadProfilePicture);
 
+// Profile update route for all roles
+router.put('/update-profile', authenticateToken, authController.updateProfile);
+
 module.exports = router;

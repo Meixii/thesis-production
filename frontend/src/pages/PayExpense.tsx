@@ -34,6 +34,7 @@ const PayExpense = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const qrImageRef = useRef<HTMLImageElement>(null);
+  const [groupQrUrls, setGroupQrUrls] = useState<{ gcash_qr_url?: string; maya_qr_url?: string }>({});
 
   useEffect(() => {
     const state = location.state as { paymentTarget?: ExpenseDetailsFromState };
@@ -44,6 +45,32 @@ const PayExpense = () => {
       navigate('/dashboard/student'); // Redirect if details are missing
     }
   }, [location.state, navigate, showToast]);
+
+  // Fetch group QR codes on mount
+  useEffect(() => {
+    const fetchGroupQr = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        // Get user profile to find groupId
+        const profileRes = await fetch(getApiUrl('/api/auth/profile'), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const profileData = await profileRes.json();
+        const groupId = profileData.groupId || profileData.data?.groupId || profileData.data?.group_id;
+        if (!groupId) return;
+        // Fetch group for QR URLs
+        const groupRes = await fetch(getApiUrl(`/api/groups/${groupId}`), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const group = await groupRes.json();
+        setGroupQrUrls({ gcash_qr_url: group.gcash_qr_url, maya_qr_url: group.maya_qr_url });
+      } catch (err) {
+        // Ignore errors, fallback to default QR
+      }
+    };
+    fetchGroupQr();
+  }, []);
 
   const handleMethodSelect = (selectedMethod: PaymentMethod) => {
     setMethod(selectedMethod);
@@ -233,16 +260,18 @@ const PayExpense = () => {
                   </div>
                   {/* QR Code Display */}
                   <div className="text-center mt-4">
-                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">QR Code for {method?.toUpperCase()}:</p>
-                     <img 
-                       ref={qrImageRef} 
-                       src={method === 'gcash' ? '/images/gcash-qr.jpg' : '/images/maya-qr.jpg'} 
-                       alt={`${method} QR Code`} 
-                       className="mx-auto w-48 h-48 object-contain border border-gray-300 dark:border-neutral-600 rounded-md shadow-sm"
-                       crossOrigin="anonymous"
-                     />
-                     <Button type="button" onClick={handleDownloadQR} variant="outline" className="mt-3 text-sm">Download QR</Button>
-                 </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">QR Code for {method?.toUpperCase()}:</p>
+                    <img 
+                      ref={qrImageRef} 
+                      src={method === 'gcash' ? (groupQrUrls.gcash_qr_url || '/images/gcash-qr.jpg') : (method === 'maya' ? (groupQrUrls.maya_qr_url || '/images/maya-qr.jpg') : '')} 
+                      alt={`${method} QR Code`} 
+                      className="mx-auto w-48 h-48 object-contain border border-gray-300 dark:border-neutral-600 rounded-md shadow-sm"
+                      crossOrigin="anonymous"
+                    />
+                    <Button type="button" onClick={handleDownloadQR} variant="outline" className="mt-3 text-sm">
+                      Download QR
+                    </Button>
+                  </div>
                 </>
               )}
 

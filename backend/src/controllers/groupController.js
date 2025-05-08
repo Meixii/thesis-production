@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { uploadToCloudinary } = require('../utils/cloudinary');
+const multer = require('multer');
 
 const createGroup = async (req, res) => {
   try {
@@ -1315,6 +1316,205 @@ const resetGroupContributions = async (req, res) => {
   }
 };
 
+// Add after getExpenses
+const getPayableExpensesForMember = async (req, res) => {
+  const userId = req.user.userId;
+  const { groupId } = req.params;
+
+  try {
+    // Check user is a member of the group and is student or FC
+    const userResult = await db.query(
+      'SELECT id, group_id, role FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const user = userResult.rows[0];
+    if (user.group_id != groupId || !['student', 'finance_coordinator'].includes(user.role)) {
+      return res.status(403).json({ error: 'Not authorized for this group' });
+    }
+
+    // Use the same logic as studentController.js
+    const expensesResult = await db.query(
+      `SELECT 
+         e.id AS expense_id,
+         e.description,
+         e.amount_per_student,
+         e.expense_date
+       FROM expenses e
+       WHERE e.group_id = $1
+       AND e.is_distributed = TRUE
+       AND e.amount_per_student IS NOT NULL
+       AND e.amount_per_student > 0
+       AND NOT EXISTS (
+         SELECT 1
+         FROM expense_payments ep
+         JOIN payments p ON ep.payment_id = p.id
+         WHERE ep.expense_id = e.id
+         AND ep.user_id = $2
+         AND p.status = 'verified'
+       )
+       ORDER BY e.expense_date DESC`,
+      [groupId, userId]
+    );
+
+    // Also fetch any pending payments for these expenses
+    const pendingExpensePaymentResult = await db.query(
+      `SELECT ep.expense_id
+         FROM expense_payments ep
+         JOIN payments p ON ep.payment_id = p.id
+         WHERE ep.user_id = $1 AND p.status = 'pending_verification'`,
+      [userId]
+    );
+    const pendingExpenseIds = new Set(pendingExpensePaymentResult.rows.map(r => r.expense_id));
+
+    const payableExpenses = expensesResult.rows.map(exp => ({
+      expense_id: exp.expense_id,
+      description: exp.description,
+      amount_due: parseFloat(exp.amount_per_student),
+      expense_date: exp.expense_date,
+      status: pendingExpenseIds.has(exp.expense_id) ? 'pending_verification' : 'due'
+    }));
+
+    res.json({ success: true, data: payableExpenses });
+
+  } catch (err) {
+    console.error('Get payable expenses for member error:', err);
+    res.status(500).json({ error: 'Server error while fetching payable expenses' });
+  }
+};
+
+/**
+ * Get payment status of all group members for a specific expense
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getExpenseMemberStatus = async (req, res) => {
+  try {
+    const { groupId, expenseId } = req.params;
+    const requesterId = req.user.userId;
+
+    // Verify requester is FC of the group
+    const userResult = await db.query(
+      'SELECT role, group_id FROM users WHERE id = $1',
+      [requesterId]
+    );
+    if (!userResult.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+    if (userRole !== 'finance_coordinator' || userGroupId != groupId) {
+      return res.status(403).json({ error: 'Only the finance coordinator of this group can access this data' });
+    }
+
+    // Get all active members of the group
+    const membersResult = await db.query(
+      `SELECT id as user_id, first_name, last_name, email, role
+       FROM users
+       WHERE group_id = $1 AND is_active = TRUE
+       ORDER BY last_name, first_name`,
+      [groupId]
+    );
+
+    // For each member, check payment status and details for this expense
+    const memberStatuses = await Promise.all(membersResult.rows.map(async (member) => {
+      // Get the most recent payment for this expense by this user (verified or pending_verification)
+      const paymentResult = await db.query(
+        `SELECT p.status, p.method, p.reference_id, p.receipt_url
+         FROM expense_payments ep
+         JOIN payments p ON ep.payment_id = p.id
+         WHERE ep.expense_id = $1 AND ep.user_id = $2 AND p.status IN ('verified', 'pending_verification')
+         ORDER BY p.status = 'verified' DESC, p.created_at DESC
+         LIMIT 1`,
+        [expenseId, member.user_id]
+      );
+      let status = 'not_paid';
+      let method = null;
+      let reference_id = null;
+      let receipt_url = null;
+      if (paymentResult.rows.length > 0) {
+        status = paymentResult.rows[0].status;
+        method = paymentResult.rows[0].method;
+        reference_id = paymentResult.rows[0].reference_id;
+        receipt_url = paymentResult.rows[0].receipt_url;
+      }
+      return {
+        ...member,
+        name: `${member.first_name} ${member.last_name}`,
+        status,
+        method,
+        reference_id,
+        receipt_url
+      };
+    }));
+
+    res.json({ success: true, data: memberStatuses });
+  } catch (error) {
+    console.error('Get expense member status error:', error);
+    res.status(500).json({ error: 'Server error while fetching expense member status' });
+  }
+};
+
+/**
+ * Update group payment QR codes (GCash/Maya)
+ * PATCH /api/groups/:groupId/qr
+ * Only FC of the group can update
+ */
+const updateGroupQRCodes = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user.userId;
+    // Check if user is FC of the group
+    const userResult = await db.query('SELECT role, group_id FROM users WHERE id = $1', [userId]);
+    if (!userResult.rows.length) return res.status(404).json({ error: 'User not found' });
+    const userRole = userResult.rows[0].role;
+    const userGroupId = userResult.rows[0].group_id;
+    if (userRole !== 'finance_coordinator' || userGroupId != groupId) {
+      return res.status(403).json({ error: 'Only the finance coordinator of this group can update QR codes' });
+    }
+
+    // Fetch group code for filename
+    const groupResult = await db.query('SELECT group_code FROM groups WHERE id = $1', [groupId]);
+    const groupCode = groupResult.rows.length ? groupResult.rows[0].group_code : 'GROUP';
+
+    let gcashQrUrl = null;
+    let mayaQrUrl = null;
+    // Handle file uploads
+    if (req.files && req.files['gcash_qr'] && req.files['gcash_qr'][0]) {
+      const uploadResult = await uploadToCloudinary(req.files['gcash_qr'][0], { groupQr: true, groupCode, method: 'gcash' });
+      gcashQrUrl = uploadResult.secure_url;
+    }
+    if (req.files && req.files['maya_qr'] && req.files['maya_qr'][0]) {
+      const uploadResult = await uploadToCloudinary(req.files['maya_qr'][0], { groupQr: true, groupCode, method: 'maya' });
+      mayaQrUrl = uploadResult.secure_url;
+    }
+    // Update group record
+    let updateFields = [];
+    let updateValues = [];
+    let idx = 1;
+    if (gcashQrUrl) {
+      updateFields.push(`gcash_qr_url = $${idx++}`);
+      updateValues.push(gcashQrUrl);
+    }
+    if (mayaQrUrl) {
+      updateFields.push(`maya_qr_url = $${idx++}`);
+      updateValues.push(mayaQrUrl);
+    }
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No QR code uploaded' });
+    }
+    updateValues.push(groupId);
+    const updateQuery = `UPDATE groups SET ${updateFields.join(', ')} WHERE id = $${idx} RETURNING gcash_qr_url, maya_qr_url`;
+    const result = await db.query(updateQuery, updateValues);
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Update group QR codes error:', err);
+    res.status(500).json({ error: 'Server error while updating group QR codes' });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroup,
@@ -1332,5 +1532,8 @@ module.exports = {
   getPendingIntraGroupLoans,
   getPendingInterGroupLoansIncoming,
   getAllGroups,
-  resetGroupContributions
+  resetGroupContributions,
+  getPayableExpensesForMember,
+  getExpenseMemberStatus,
+  updateGroupQRCodes
 }; 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGroup, getGroup, getGroupLimits, getGroupDashboard, regenerateGroupCode, updateGroupSettings, getGroupMembers, getUserContributions, getPendingPaymentsForGroup, addExpense, getExpenses, updateExpense, deleteExpense, getPendingIntraGroupLoans, getPendingInterGroupLoansIncoming, getAllGroups, resetGroupContributions } = require('../controllers/groupController');
+const { createGroup, getGroup, getGroupLimits, getGroupDashboard, regenerateGroupCode, updateGroupSettings, getGroupMembers, getUserContributions, getPendingPaymentsForGroup, addExpense, getExpenses, updateExpense, deleteExpense, getPendingIntraGroupLoans, getPendingInterGroupLoansIncoming, getAllGroups, resetGroupContributions, getPayableExpensesForMember, getExpenseMemberStatus, updateGroupQRCodes } = require('../controllers/groupController');
 const { authenticateToken, isFinanceCoordinator } = require('../middleware/auth');
 const multer = require('multer');
 
@@ -65,5 +65,15 @@ router.get('/:groupId/loans/pending/inter/incoming', isFinanceCoordinator, getPe
 
 // New route for resetting group contributions (FC only)
 router.post('/:groupId/contributions/reset', isFinanceCoordinator, resetGroupContributions);
+
+// Add after other group routes
+router.get('/:groupId/payable-expenses', getPayableExpensesForMember);
+router.get('/:groupId/expenses/:expenseId/members-status', getExpenseMemberStatus);
+
+// Add after other group routes
+router.patch('/:groupId/qr', upload.fields([
+  { name: 'gcash_qr', maxCount: 1 },
+  { name: 'maya_qr', maxCount: 1 }
+]), updateGroupQRCodes);
 
 module.exports = router; 

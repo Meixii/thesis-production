@@ -7,12 +7,25 @@ import Button from '../ui/Button';
 import Card from '../ui/Card';
 import DashboardCard from '../dashboard/DashboardCard';
 
+interface Payment {
+  id: number;
+  amount: number;
+  method: string;
+  status: string;
+  reference_id: string;
+  receipt_url: string;
+  created_at: string;
+  verified_at: string | null;
+  amount_allocated: number;
+}
+
 interface UserStatus {
   user_id: number;
   user_name: string;
   status: 'pending' | 'partially_paid' | 'paid' | 'overdue';
   amount_paid: number;
   last_payment_date: string | null;
+  payments?: Payment[];
 }
 
 interface DueDetails {
@@ -30,6 +43,7 @@ const DueDetails = () => {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dueDetails, setDueDetails] = useState<DueDetails | null>(null);
+  const [expandedRows, setExpandedRows] = useState<{ [userId: number]: boolean }>({});
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -111,6 +125,10 @@ const DueDetails = () => {
       default:
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
     }
+  };
+
+  const toggleRow = (userId: number) => {
+    setExpandedRows(prev => ({ ...prev, [userId]: !prev[userId] }));
   };
 
   if (loading) {
@@ -213,33 +231,50 @@ const DueDetails = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount Paid</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Payment</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Balance</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Payment Method</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ref ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Receipt</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {dueDetails.user_statuses.map((status) => (
-                  <tr key={status.user_id} className="hover:bg-gray-50 dark:hover:bg-neutral-800">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {status.user_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(status.status)}`}>
-                        {status.status.replace('_', ' ').charAt(0).toUpperCase() + status.status.slice(1).replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatCurrency(status.amount_paid)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {status.last_payment_date 
-                        ? new Date(status.last_payment_date).toLocaleDateString()
-                        : '-'
-                      }
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatCurrency(dueDetails.total_amount_due - status.amount_paid)}
-                    </td>
-                  </tr>
-                ))}
+                {dueDetails.user_statuses.map((status) => {
+                  const latestPayment = status.payments && status.payments.length > 0 ? status.payments[0] : null;
+                  return (
+                    <tr key={status.user_id} className="hover:bg-gray-50 dark:hover:bg-neutral-800">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {status.user_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(status.status)}`}>
+                          {status.status.replace('_', ' ').charAt(0).toUpperCase() + status.status.slice(1).replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatCurrency(status.amount_paid)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {status.last_payment_date 
+                          ? new Date(status.last_payment_date).toLocaleDateString()
+                          : '-'
+                        }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {formatCurrency(dueDetails.total_amount_due - status.amount_paid)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {latestPayment ? latestPayment.method : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {latestPayment ? (latestPayment.reference_id || '-') : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {latestPayment && latestPayment.receipt_url ? (
+                          <a href={latestPayment.receipt_url} target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">View</a>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
