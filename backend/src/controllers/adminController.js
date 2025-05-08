@@ -513,15 +513,18 @@ const createUser = async (req, res) => {
       return res.status(400).json({ error: 'Email already registered.' });
     }
 
+    // Generate profile picture URL
+    const profilePictureUrl = `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(email)}`;
+
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
     // Insert user
     const result = await db.query(
       `INSERT INTO users (
-        first_name, middle_name, last_name, suffix, email, password_hash, role, group_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id, first_name, middle_name, last_name, suffix, email, role, group_id, is_active, created_at`,
+        first_name, middle_name, last_name, suffix, email, password_hash, role, group_id, profile_picture_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, first_name, middle_name, last_name, suffix, email, role, group_id, is_active, created_at, profile_picture_url`,
       [
         first_name,
         middle_name || null,
@@ -530,7 +533,8 @@ const createUser = async (req, res) => {
         email,
         password_hash,
         role,
-        group_id || null
+        group_id || null,
+        profilePictureUrl
       ]
     );
 
@@ -650,4 +654,4 @@ module.exports = {
   createUser,
   deleteUser,
   exportDatabase,
-}; 
+};

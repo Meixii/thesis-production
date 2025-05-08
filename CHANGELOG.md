@@ -626,6 +626,30 @@ Update #81
 - Stat cards now use a static style unless an onClick is provided.
 - Reviewed and confirmed the Make Payment button in Quick Actions is visually prominent and navigates to the payment page.
 
+Update #83
+- Improved password management UI in Profile page:
+  - Removed redundant password requirement error messages
+  - Kept visual password requirements checklist for better user experience  
+  - Enhanced error handling to only show non-requirement related errors
+  - Streamlined password validation feedback system
+  - Improved overall form clarity and usability
+  
+Update #82
+- Improved Profile page UI organization and clarity:
+  - Restructured Personal Information section with dedicated rows for Full Name and Email
+  - Added centered alignment for Role and Group information 
+  - Replaced profile picture edit icon with pencil icon for better UX
+  - Maintained consistent styling and responsiveness across different screen sizes
+  - Enhanced visual hierarchy and scanability of user information
+
+Update #81
+- Added default profile pictures for all new users:
+  - Integrated DiceBear API to generate unique avatars based on email addresses
+  - Automatically assigns profile_picture_url during user registration
+  - Maintains consistent visual identity across the application
+  - Ensures all users have a personalized avatar without manual uploads
+  - Improves user experience by eliminating empty profile images
+
 Update #80
 - Added 'danger' (red) variant to Button component for destructive actions.
 - Updated ConfirmModal to accept 'danger' as confirmVariant for confirm button.

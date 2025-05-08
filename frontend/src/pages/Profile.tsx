@@ -500,8 +500,7 @@ const Profile = () => {
                 </svg>
               ) : (
                 <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2a2.828 2.828 0 11-4-4 2.828 2.828 0 014 4z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7l-1.5 1.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M6.8 21h3.4a1 1 0 00.8-.4l9.6-12a1 1 0 000-1.2l-2.8-3.6a1 1 0 00-1.2 0l-9.6 12a1 1 0 00-.2.6v3.4a1 1 0 001 1z" />
                 </svg>
               )}
             </button>
@@ -653,8 +652,8 @@ const Profile = () => {
                   </form>
                 ) : (
                   <div className="space-y-6">
-                    {/* Basic Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                    {/* Basic Info - Changed to single column layout */}
+                    <div className="space-y-4">
                       <div className="space-y-1">
                         <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Full Name</h3>
                         <p className="text-base font-medium text-neutral-900 dark:text-white">
@@ -665,14 +664,14 @@ const Profile = () => {
                         <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Email</h3>
                         <p className="text-base font-medium text-neutral-900 dark:text-white">{profile?.email}</p>
                       </div>
-                      </div>
+                    </div>
 
-                    {/* Role & Group Info */}
+                    {/* Role & Group Info - Added text-center */}
                     <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                        <div className="space-y-1">
+                        <div className="space-y-1 text-center">
                           <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Role</h3>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
                               ${userRole === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                               : userRole === 'finance_coordinator' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
@@ -687,9 +686,9 @@ const Profile = () => {
                           </div>
                         </div>
                         {profile?.groupId && (
-                          <div className="space-y-1">
+                          <div className="space-y-1 text-center">
                             <h3 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Group</h3>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center gap-2">
                               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
                                 ${profile.groupType === 'section' 
                                   ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
@@ -697,10 +696,10 @@ const Profile = () => {
                               >
                                 {profile.groupName}
                                 {profile.groupType === 'section' ? ' (Section)' : ' (Thesis)'}
-                            </span>
+                              </span>
                             </div>
                           </div>
-                          )}
+                        )}
                       </div>
                     </div>
 
@@ -788,7 +787,7 @@ const Profile = () => {
               {isChangingPassword ? (
                 <form onSubmit={handlePasswordSubmit} className="space-y-4">
                   <Input type="password" name="currentPassword" label="Current Password" value={passwordFormData.currentPassword} onChange={handlePasswordChange} required />
-                  <Input type="password" name="newPassword" label="New Password" value={passwordFormData.newPassword} onChange={handlePasswordChange} error={passwordErrors.newPassword} required />
+                  <Input type="password" name="newPassword" label="New Password" value={passwordFormData.newPassword} onChange={handlePasswordChange} error={passwordErrors.newPassword && !passwordErrors.newPassword.includes('Password must') ? passwordErrors.newPassword : ''} required />
                   <Input type="password" name="confirmPassword" label="Confirm New Password" value={passwordFormData.confirmPassword} onChange={handlePasswordChange} error={passwordErrors.confirmPassword} required />
                   <div className="mt-4 p-4 bg-gray-50 dark:bg-neutral-700/30 rounded-lg">
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Password Requirements:</h3>
@@ -837,4 +836,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;
