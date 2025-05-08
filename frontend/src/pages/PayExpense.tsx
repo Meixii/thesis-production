@@ -133,7 +133,7 @@ const PayExpense = () => {
   };
 
   // Helper for payment method icon
-  const getPaymentMethodIcon = (m: PaymentMethod) => { /* ... same as Payment.tsx ... */ };
+  // const getPaymentMethodIcon = (m: PaymentMethod) => { /* ... same as Payment.tsx ... */ };
 
   if (!expenseDetails) {
     // Show loading or error state while details are loading/missing
