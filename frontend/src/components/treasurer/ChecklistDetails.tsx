@@ -62,7 +62,7 @@ const ChecklistDetails = () => {
   const [deleteItemLoading, setDeleteItemLoading] = useState(false);
 
   // New batch update state
-  const [batchUpdateLoading, setBatchUpdateLoading] = useState<boolean>(false);
+  // const [batchUpdateLoading, setBatchUpdateLoading] = useState<boolean>(false);
   const [studentBatchLoading, setStudentBatchLoading] = useState<{[key: number]: boolean}>({});
   const [itemBatchLoading, setItemBatchLoading] = useState<{[key: number]: boolean}>({});
 

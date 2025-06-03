@@ -46,22 +46,22 @@ interface ExpenseChartData {
   color: string;
 }
 
-interface Expense {
-  id: number;
-  description: string;
-  amount: number;
-  category: string;
-  expense_date: string;
-  receipt_url: string | null;
-  created_at: string;
-  recorded_by: string;
-  quantity?: number;
-  unit?: string;
-  type?: string;
-  status?: string;
-  is_distributed?: boolean;
-  amount_per_student?: number;
-}
+// interface Expense {
+//   id: number;
+//   description: string;
+//   amount: number;
+//   category: string;
+//   expense_date: string;
+//   receipt_url: string | null;
+//   created_at: string;
+//   recorded_by: string;
+//   quantity?: number;
+//   unit?: string;
+//   type?: string;
+//   status?: string;
+//   is_distributed?: boolean;
+//   amount_per_student?: number;
+// }
 
 interface PayableExpense {
   expense_id: number;

@@ -279,10 +279,10 @@ const WeeksAdmin = () => {
     setNewWeeks(updatedWeeks);
   };
 
-  const removeNewWeek = (index: number) => {
-    const updatedWeeks = newWeeks.filter((_, i) => i !== index);
-    setNewWeeks(updatedWeeks);
-  };
+  // const removeNewWeek = (index: number) => {
+  //   const updatedWeeks = newWeeks.filter((_, i) => i !== index);
+  //   setNewWeeks(updatedWeeks);
+  // };
 
   const suggestNextWeek = useCallback(() => {
     // If no existing weeks, start from the current week

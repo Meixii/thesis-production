@@ -9,16 +9,16 @@ import Cropper from 'react-easy-crop';
 import Modal from '../ui/Modal';
 import getCroppedImg from '../../utils/cropImage';
 
-interface GroupData {
-  id: number;
-  group_name: string;
-  group_type: string;
-  budget_goal: number;
-  max_intra_loan_per_student: number;
-  max_inter_loan_limit: number;
-  intra_loan_flat_fee: number;
-  group_code: string;
-}
+// interface GroupData {
+//   id: number;
+//   group_name: string;
+//   group_type: string;
+//   budget_goal: number;
+//   max_intra_loan_per_student: number;
+//   max_inter_loan_limit: number;
+//   intra_loan_flat_fee: number;
+//   group_code: string;
+// }
 
 interface EventTarget {
   name: string;

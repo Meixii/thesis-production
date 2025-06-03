@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import LogoutButton from '../ui/LogoutButton';
 import NavDropdown from '../ui/NavDropdown';

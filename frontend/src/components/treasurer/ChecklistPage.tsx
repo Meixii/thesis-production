@@ -5,7 +5,6 @@ import { useToast } from '../../context/ToastContext';
 import Navigation from '../layouts/Navigation';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
-import DashboardCard from '../dashboard/DashboardCard';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import ConfirmModal from '../ui/ConfirmModal';

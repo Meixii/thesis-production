@@ -87,12 +87,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 const LoanManagement: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [groupId, setGroupId] = useState<number | null>(null);
   const [intraLoans, setIntraLoans] = useState<Loan[]>([]);
-  const [interLoans, setInterLoans] = useState<Loan[]>([]);
+  // const [interLoans, setInterLoans] = useState<Loan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [groupId, setGroupId] = useState<number | null>(null);
   
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -186,7 +186,7 @@ const LoanManagement: React.FC = () => {
   const openConfirmModal = (action: 'approve' | 'reject', loanId: number, loanType: 'intra_group' | 'inter_group', requestingUserName: string, amount: number) => {
     const loan = loanType === 'intra_group'
       ? intraLoans.find(l => l.id === loanId)
-      : interLoans.find(l => l.id === loanId);
+      : intraLoans.find(l => l.id === loanId);
       
     if (!loan) return;
       
@@ -607,7 +607,7 @@ const LoanManagement: React.FC = () => {
                       Other groups requesting to borrow from your group's fund.
                     </p>
                   </div>
-                  {renderLoanTable(interLoans, 'inter')}
+                  {renderLoanTable(intraLoans, 'inter')}
                 </Card>
               </Tab.Panel>
               <Tab.Panel>

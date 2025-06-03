@@ -46,7 +46,7 @@ const DueDetails = () => {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dueDetails, setDueDetails] = useState<DueDetails | null>(null);
-  const [expandedRows, setExpandedRows] = useState<{ [userId: number]: boolean }>({});
+  // const [expandedRows, setExpandedRows] = useState<{ [userId: number]: boolean }>({});
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [currentReceiptUrl, setCurrentReceiptUrl] = useState('');
   const [currentStudentName, setCurrentStudentName] = useState('');
@@ -142,9 +142,9 @@ const DueDetails = () => {
     }
   };
 
-  const toggleRow = (userId: number) => {
-    setExpandedRows(prev => ({ ...prev, [userId]: !prev[userId] }));
-  };
+  // const toggleRow = (userId: number) => {
+  //   setExpandedRows(prev => ({ ...prev, [userId]: !prev[userId] }));
+  // };
 
   const openReceiptModal = (receiptUrl: string, studentName: string) => {
     setCurrentReceiptUrl(receiptUrl);
