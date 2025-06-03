@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -8,6 +8,26 @@ import { useToast } from '../../context/ToastContext';
 import Cropper from 'react-easy-crop';
 import Modal from '../ui/Modal';
 import getCroppedImg from '../../utils/cropImage';
+
+interface GroupData {
+  id: number;
+  group_name: string;
+  group_type: string;
+  budget_goal: number;
+  max_intra_loan_per_student: number;
+  max_inter_loan_limit: number;
+  intra_loan_flat_fee: number;
+  group_code: string;
+}
+
+interface EventTarget {
+  name: string;
+  value: string | number;
+}
+
+interface ChangeEvent {
+  target: EventTarget;
+}
 
 interface GroupSettings {
   id: number;
@@ -19,6 +39,13 @@ interface GroupSettings {
   intra_loan_flat_fee: number;
   gcash_qr_url?: string;
   maya_qr_url?: string;
+}
+
+interface CropCallback {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 const GroupSettingsPage = () => {
@@ -82,7 +109,7 @@ const GroupSettingsPage = () => {
     fetchSettings();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -132,7 +159,7 @@ const GroupSettingsPage = () => {
   };
 
   // Cropper callback
-  const onQRCropComplete = (_: any, croppedAreaPixels: any) => {
+  const onQRCropComplete = (_: unknown, croppedAreaPixels: CropCallback) => {
     setQrCroppedAreaPixels(croppedAreaPixels);
   };
 
@@ -196,7 +223,7 @@ const GroupSettingsPage = () => {
               name="group_name"
               label="Group Name"
               value={form.group_name}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
             />
             <Input
@@ -215,7 +242,7 @@ const GroupSettingsPage = () => {
               min="0"
               step="0.01"
               value={form.budget_goal}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
               helperText="Total target amount for your group."
             />
@@ -227,7 +254,7 @@ const GroupSettingsPage = () => {
               min="0"
               step="0.01"
               value={form.max_intra_loan_per_student}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
               helperText="Maximum amount a student can borrow from the group."
             />
@@ -239,7 +266,7 @@ const GroupSettingsPage = () => {
               min="0"
               step="0.01"
               value={form.max_inter_loan_limit}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
               helperText="Maximum amount the group can lend or borrow from other groups."
             />
@@ -251,7 +278,7 @@ const GroupSettingsPage = () => {
               min="0"
               step="0.01"
               value={form.intra_loan_flat_fee}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
               helperText="Flat fee charged for each intra-group loan."
             />

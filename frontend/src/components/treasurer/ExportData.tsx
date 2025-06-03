@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import DashboardCard from '../dashboard/DashboardCard';
@@ -133,10 +133,12 @@ const ExportData = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   if (loading) {

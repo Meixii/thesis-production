@@ -1,6 +1,6 @@
 // This is the WeeksAdmin component
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getApiUrl } from '../../utils/api';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
@@ -11,11 +11,47 @@ interface ThesisWeek {
   week_number: number;
   start_date: string;
   end_date: string;
+  group_id?: number;
+  group_name?: string;
+}
+
+interface Group {
+  id: number;
+  name?: string;
+  group_name: string;
+}
+
+// Utility function to format date as yyyy-mm-dd
+function formatDateYYYYMMDD(date: string | Date): string {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    // If already in yyyy-mm-dd, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+    // If ISO string (yyyy-mm-ddTHH:MM:SS.sssZ), split at T
+    if (/^\d{4}-\d{2}-\d{2}T/.test(date)) return date.split('T')[0];
+    // Otherwise, fallback: try to parse as Date, but avoid timezone shift
+    return date;
+  }
+  // If Date object, format as yyyy-mm-dd in local time
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper to format yyyy-mm-dd or ISO string as M/D/YYYY
+function formatDateMDY(dateStr: string): string {
+  if (!dateStr) return '';
+  // Handles both 'yyyy-mm-dd' and 'yyyy-mm-ddTHH:MM:SS.sssZ'
+  const [year, month, day] = dateStr.split('T')[0].split('-');
+  return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
 }
 
 const WeeksAdmin = () => {
   const { showToast } = useToast();
   const [weeks, setWeeks] = useState<ThesisWeek[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddingWeeks, setIsAddingWeeks] = useState(false);
   const [editingWeek, setEditingWeek] = useState<ThesisWeek | null>(null);
@@ -30,16 +66,39 @@ const WeeksAdmin = () => {
     start_date: '',
     end_date: ''
   }]);
+  const [originalEditingWeek, setOriginalEditingWeek] = useState<ThesisWeek | null>(null);
+  const [isUpdatingWeek, setIsUpdatingWeek] = useState(false);
 
-  useEffect(() => {
-    fetchWeeks();
-  }, []);
+  const fetchGroups = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl('/api/admin/groups'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch groups');
+      const data = await response.json();
+      setGroups(data.groups || []);
+      if (data.groups && data.groups.length > 0) {
+        setSelectedGroupId(0); // Default to 'All Groups'
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+      showToast('Failed to load groups', 'error');
+    }
+  }, [showToast]);
 
-  const fetchWeeks = async () => {
+  const fetchWeeks = useCallback(async (groupId?: number) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(getApiUrl('/api/admin/thesis-weeks'), {
+      let url = getApiUrl('/api/admin/thesis-weeks');
+      if (groupId && groupId !== 0) {
+        url += `?group_id=${groupId}`;
+      }
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -51,14 +110,32 @@ const WeeksAdmin = () => {
       const data = await response.json();
       setWeeks(data.thesis_weeks || []);
     } catch (error) {
+      console.error('Error fetching thesis weeks:', error);
       showToast('Failed to load thesis weeks', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
+
+  useEffect(() => {
+    if (selectedGroupId === 0) {
+      fetchWeeks(); // All groups
+    } else if (selectedGroupId !== null) {
+      fetchWeeks(selectedGroupId);
+    }
+  }, [selectedGroupId, fetchWeeks]);
 
   const handleAddWeeks = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent submission if any week has no valid group_id
+    if (newWeeks.some(week => !week.group_id || isNaN(Number(week.group_id)))) {
+      showToast('Please select a valid group for all weeks', 'error');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const addPromises = newWeeks.map(week => 
@@ -68,7 +145,7 @@ const WeeksAdmin = () => {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(week)
+          body: JSON.stringify({ ...week, group_id: Number(week.group_id) })
         })
       );
 
@@ -80,15 +157,16 @@ const WeeksAdmin = () => {
         throw new Error('Failed to add some thesis weeks');
       }
 
-      await fetchWeeks();
+      await fetchWeeks(selectedGroupId!);
       setIsAddingWeeks(false);
       setNewWeeks([{
-        week_number: (weeks.length > 0 ? Math.max(...weeks.map(w => w.week_number)) + 1 : 1),
+        week_number: (weeks.length > 0 ? Math.max(...weeks.map(w => w.week_number)) : 1),
         start_date: '',
         end_date: ''
       }]);
       showToast(`Successfully added ${newWeeks.length} thesis week(s)`, 'success');
     } catch (error) {
+      console.error('Error adding thesis weeks:', error);
       showToast('Failed to add thesis weeks', 'error');
     }
   };
@@ -96,7 +174,13 @@ const WeeksAdmin = () => {
   const handleUpdateWeek = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingWeek) return;
+    // Validation
+    if (!editingWeek.week_number || !editingWeek.start_date || !editingWeek.end_date || !editingWeek.group_id) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
     try {
+      setIsUpdatingWeek(true);
       const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl(`/api/admin/thesis-weeks/${editingWeek.id}`), {
         method: 'PUT',
@@ -104,17 +188,21 @@ const WeeksAdmin = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(editingWeek)
+        body: JSON.stringify({ ...editingWeek, group_id: editingWeek.group_id })
       });
       if (!response.ok) {
         throw new Error('Failed to update thesis week');
       }
-      await fetchWeeks();
+      await fetchWeeks(selectedGroupId!);
       setEditingWeek(null);
+      setOriginalEditingWeek(null);
       setIsUpdateWeekModalOpen(false);
       showToast('Thesis week updated successfully', 'success');
     } catch (error) {
+      console.error('Error updating thesis week:', error);
       showToast('Failed to update thesis week', 'error');
+    } finally {
+      setIsUpdatingWeek(false);
     }
   };
 
@@ -133,10 +221,11 @@ const WeeksAdmin = () => {
       if (!response.ok) {
         throw new Error('Failed to delete thesis week');
       }
-      await fetchWeeks();
+      await fetchWeeks(selectedGroupId!);
       setWeekToDelete(null);
       showToast('Thesis week deleted successfully', 'success');
     } catch (error) {
+      console.error('Error deleting thesis week:', error);
       showToast('Failed to delete thesis week', 'error');
     }
   };
@@ -162,11 +251,12 @@ const WeeksAdmin = () => {
         throw new Error('Failed to delete some thesis weeks');
       }
 
-      await fetchWeeks();
+      await fetchWeeks(selectedGroupId!);
       setSelectedWeeks([]);
       setIsWeekSelectMode(false);
       showToast(`Successfully deleted ${selectedWeeks.length} thesis week(s)`, 'success');
     } catch (error) {
+      console.error('Error deleting thesis weeks:', error);
       showToast('Failed to delete thesis weeks', 'error');
     }
   };
@@ -194,46 +284,46 @@ const WeeksAdmin = () => {
     setNewWeeks(updatedWeeks);
   };
 
-  const suggestNextWeek = () => {
+  const suggestNextWeek = useCallback(() => {
     // If no existing weeks, start from the current week
     if (weeks.length === 0) {
       const today = new Date();
       const startOfWeek = new Date(today);
       startOfWeek.setDate(today.getDate() - today.getDay()); // Set to Sunday
-      
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6); // Set to Saturday
-
       return {
         week_number: 1,
-        start_date: startOfWeek.toISOString().split('T')[0],
-        end_date: endOfWeek.toISOString().split('T')[0]
+        start_date: formatDateYYYYMMDD(startOfWeek),
+        end_date: formatDateYYYYMMDD(endOfWeek)
       };
     }
-
     // Find the last week and increment
     const lastWeek = weeks.reduce((max, week) => 
       week.week_number > max.week_number ? week : max
     );
-
     const lastEndDate = new Date(lastWeek.end_date);
     const nextStartDate = new Date(lastEndDate);
     nextStartDate.setDate(lastEndDate.getDate() + 1); // Start from the day after last week's end
-
     const nextEndDate = new Date(nextStartDate);
     nextEndDate.setDate(nextStartDate.getDate() + 6); // 7 days period
-
     return {
       week_number: lastWeek.week_number + 1,
-      start_date: nextStartDate.toISOString().split('T')[0],
-      end_date: nextEndDate.toISOString().split('T')[0]
+      start_date: formatDateYYYYMMDD(nextStartDate),
+      end_date: formatDateYYYYMMDD(nextEndDate)
     };
-  };
+  }, [weeks]);
 
   useEffect(() => {
     // When weeks are loaded, update newWeeks with suggested next week
     if (weeks.length > 0) {
       setNewWeeks([suggestNextWeek()]);
+    }
+  }, [weeks, suggestNextWeek]);
+
+  useEffect(() => {
+    if (weeks.length > 0) {
+      console.log('Fetched weeks:', weeks);
     }
   }, [weeks]);
 
@@ -280,6 +370,20 @@ const WeeksAdmin = () => {
           )}
         </div>
       </div>
+      {/* Group Selector */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Group</label>
+        <select
+          value={selectedGroupId ?? 0}
+          onChange={e => setSelectedGroupId(Number(e.target.value))}
+          className="w-full sm:w-64 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
+        >
+          <option value={0}>All Groups</option>
+          {groups.map(group => (
+            <option key={group.id} value={group.id}>{group.group_name || group.name}</option>
+          ))}
+        </select>
+      </div>
       <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-md overflow-x-auto border border-gray-200 dark:border-gray-700">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-neutral-700">
@@ -306,11 +410,19 @@ const WeeksAdmin = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Week Number</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Start Date</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">End Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Group</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {weeks.map(week => (
+            {weeks.length === 0 ? (
+              <tr>
+                <td colSpan={isWeekSelectMode ? 6 : 5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No thesis weeks found for this group.
+                </td>
+              </tr>
+            ) : (
+              weeks.map(week => (
               <tr key={week.id} className={selectedWeeks.includes(week.id!) ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-neutral-700/50'}>
                 {isWeekSelectMode && (
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -330,15 +442,24 @@ const WeeksAdmin = () => {
                   {week.week_number}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {new Date(week.start_date).toLocaleDateString()}
+                    {formatDateMDY(week.start_date)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {formatDateMDY(week.end_date)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {new Date(week.end_date).toLocaleDateString()}
+                    {week.group_name || groups.find(g => g.id === week.group_id)?.group_name || groups.find(g => g.id === week.group_id)?.name || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
                     onClick={() => {
-                      setEditingWeek(week);
+                        const weekCopy = {
+                          ...week,
+                          start_date: formatDateYYYYMMDD(week.start_date),
+                          end_date: formatDateYYYYMMDD(week.end_date)
+                        };
+                        setEditingWeek(weekCopy);
+                        setOriginalEditingWeek({ ...weekCopy });
                       setIsUpdateWeekModalOpen(true);
                     }}
                     className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 mr-4 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -358,7 +479,8 @@ const WeeksAdmin = () => {
                   </button>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -366,9 +488,9 @@ const WeeksAdmin = () => {
       {/* Add Weeks Modal */}
       {isAddingWeeks && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg p-6 w-full max-w-2xl border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg p-8 w-full max-w-2xl border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                 Add New Thesis Weeks
               </h3>
               <Button 
@@ -389,9 +511,9 @@ const WeeksAdmin = () => {
               </Button>
             </div>
             <form onSubmit={handleAddWeeks} className="space-y-6">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {newWeeks.map((week, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Week Number</label>
                       <input 
@@ -412,8 +534,7 @@ const WeeksAdmin = () => {
                         required 
                       />
                     </div>
-                    <div className="flex items-end space-x-2">
-                      <div className="flex-grow">
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
                         <input 
                           type="date" 
@@ -423,32 +544,33 @@ const WeeksAdmin = () => {
                           required 
                         />
                       </div>
-                      {newWeeks.length > 1 && (
-                        <Button 
-                          type="button"
-                          variant="secondary" 
-                          className="h-10 w-10 p-0 flex items-center justify-center"
-                          onClick={() => removeNewWeek(index)}
-                        >
-                          <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </Button>
-                      )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Group</label>
+                      <select
+                        value={week.group_id ?? ''}
+                        onChange={e => updateNewWeek(index, { group_id: Number(e.target.value) })}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
+                        required
+                      >
+                        <option value="">Select Group</option>
+                        {groups.map(group => (
+                          <option key={group.id} value={group.id}>{group.group_name || group.name}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between items-center gap-4 mt-6">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={addNewWeekRow}
-                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 w-full sm:w-auto"
                 >
                   Add Another Week
                 </Button>
-                <div className="flex space-x-3">
+                <div className="flex gap-3 w-full sm:w-auto justify-end">
                   <Button 
                     type="button" 
                     variant="secondary" 
@@ -460,10 +582,11 @@ const WeeksAdmin = () => {
                         end_date: ''
                       }]); 
                     }}
+                    className="w-full sm:w-auto"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary">Add Weeks</Button>
+                  <Button type="submit" variant="primary" className="w-full sm:w-auto">Add Weeks</Button>
                 </div>
               </div>
             </form>
@@ -499,7 +622,7 @@ const WeeksAdmin = () => {
                   <input 
                     type="number" 
                     value={editingWeek.week_number} 
-                    onChange={(e) => setEditingWeek({ ...editingWeek, week_number: parseInt(e.target.value) })}
+                    onChange={e => setEditingWeek({ ...editingWeek, week_number: parseInt(e.target.value) })}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400" 
                     required 
                   />
@@ -508,8 +631,8 @@ const WeeksAdmin = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
                   <input 
                     type="date" 
-                    value={editingWeek.start_date} 
-                    onChange={(e) => setEditingWeek({ ...editingWeek, start_date: e.target.value })}
+                    value={formatDateYYYYMMDD(editingWeek.start_date)} 
+                    onChange={e => setEditingWeek({ ...editingWeek, start_date: e.target.value })}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400" 
                     required 
                   />
@@ -518,14 +641,37 @@ const WeeksAdmin = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
                   <input 
                     type="date" 
-                    value={editingWeek.end_date} 
-                    onChange={(e) => setEditingWeek({ ...editingWeek, end_date: e.target.value })}
+                    value={formatDateYYYYMMDD(editingWeek.end_date)} 
+                    onChange={e => setEditingWeek({ ...editingWeek, end_date: e.target.value })}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400" 
                     required 
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Group</label>
+                  <select
+                    value={editingWeek.group_id ?? selectedGroupId ?? ''}
+                    onChange={e => setEditingWeek({ ...editingWeek, group_id: Number(e.target.value) })}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
+                    required
+                  >
+                    <option value="">Select Group</option>
+                    {groups.map(group => (
+                      <option key={group.id} value={group.id}>{group.group_name || group.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex justify-end space-x-3 pt-2">
+              <div className="flex justify-between items-center pt-2 gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => originalEditingWeek && setEditingWeek({ ...originalEditingWeek, start_date: formatDateYYYYMMDD(originalEditingWeek.start_date), end_date: formatDateYYYYMMDD(originalEditingWeek.end_date) })}
+                  className="border-gray-300 dark:border-gray-600"
+                >
+                  Reset
+                </Button>
+                <div className="flex gap-3">
                 <Button 
                   type="button" 
                   variant="secondary" 
@@ -536,7 +682,8 @@ const WeeksAdmin = () => {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary">Update</Button>
+                  <Button type="submit" variant="primary" isLoading={isUpdatingWeek} loadingText="Updating...">Update</Button>
+                </div>
               </div>
             </form>
           </div>

@@ -5,7 +5,7 @@ import DashboardCard from '../../components/dashboard/DashboardCard';
 import StatCard from '../../components/dashboard/StatCard';
 import JoinGroup from '../../components/groups/JoinGroup';
 import Button from '../../components/ui/Button';
-import Navigation from '../../components/ui/Navigation';
+import Navigation from '../../components/layouts/Navigation';
 import { useToast } from '../../context/ToastContext';
 
 interface UserProfile {
@@ -220,10 +220,12 @@ const StudentDashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   // Add a helper function for safe number formatting

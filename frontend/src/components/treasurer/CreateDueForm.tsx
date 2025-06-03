@@ -5,7 +5,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Card from '../ui/Card';
 import { useToast } from '../../context/ToastContext';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 
 interface DueFormData {
   title: string;

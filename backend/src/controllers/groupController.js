@@ -1471,8 +1471,8 @@ const updateGroupQRCodes = async (req, res) => {
     if (!userResult.rows.length) return res.status(404).json({ error: 'User not found' });
     const userRole = userResult.rows[0].role;
     const userGroupId = userResult.rows[0].group_id;
-    if (userRole !== 'finance_coordinator' || userGroupId != groupId) {
-      return res.status(403).json({ error: 'Only the finance coordinator of this group can update QR codes' });
+    if ((userRole !== 'finance_coordinator' && userRole !== 'treasurer') || userGroupId != groupId) {
+      return res.status(403).json({ error: 'Only the finance coordinator or treasurer of this group can update QR codes' });
     }
 
     // Fetch group code for filename

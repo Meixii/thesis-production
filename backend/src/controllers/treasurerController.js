@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const notificationService = require('../services/notificationService');
 
 /**
  * Get treasurer dashboard data
@@ -107,18 +108,21 @@ const getDashboardData = async (req, res) => {
 
     res.json({
       total_dues: parseInt(totalDuesResult.rows[0].count),
-      total_amount_collected: parseFloat(totalCollectedResult.rows[0].total),
+      total_amount_collected: parseFloat(totalCollectedResult.rows[0].total) || 0,
       pending_verifications: parseInt(pendingVerificationsResult.rows[0].count),
       active_dues: parseInt(activeDuesResult.rows[0].count),
       collection_trend: {
         labels: collectionTrendResult.rows.map(row => row.month),
-        data: collectionTrendResult.rows.map(row => parseFloat(row.total))
+        data: collectionTrendResult.rows.map(row => parseFloat(row.total) || 0)
       },
       payment_distribution: paymentDistributionResult.rows.map(row => ({
         category: row.category,
-        amount: parseFloat(row.amount)
+        amount: parseFloat(row.amount) || 0
       })),
-      recent_payments: recentPaymentsResult.rows
+      recent_payments: recentPaymentsResult.rows.map(row => ({
+        ...row,
+        amount: parseFloat(row.amount) || 0
+      }))
     });
   } catch (error) {
     console.error('Get treasurer dashboard data error:', error);
@@ -177,8 +181,8 @@ const getStats = async (req, res) => {
     res.json({
       total_dues: parseInt(totalDuesResult.rows[0].count),
       total_students: parseInt(totalStudentsResult.rows[0].count),
-      total_amount_collected: parseFloat(totalCollectedResult.rows[0].total),
-      total_amount_pending: parseFloat(totalPendingResult.rows[0].total)
+      total_amount_collected: parseFloat(totalCollectedResult.rows[0].total) || 0,
+      total_amount_pending: parseFloat(totalPendingResult.rows[0].total) || 0
     });
   } catch (error) {
     console.error('Get treasurer stats error:', error);
@@ -229,6 +233,9 @@ const getDues = async (req, res) => {
 
     const values = limit ? [groupId, limit] : [groupId];
     const result = await db.query(query, values);
+
+    // Update all due statuses before returning results
+    await updateAllDueStatuses(groupId);
 
     res.json({
       dues: result.rows
@@ -327,6 +334,22 @@ const createDue = async (req, res) => {
 
       await client.query('COMMIT');
 
+      // Send notification to all group members
+      try {
+        const creatorName = `${req.user.firstName} ${req.user.lastName}`;
+        await notificationService.notifyNewDue({
+          dueId,
+          title,
+          amount: parseFloat(total_amount_due),
+          dueDate: due_date,
+          groupId,
+          creatorName
+        });
+      } catch (notificationError) {
+        console.error('Failed to send notifications:', notificationError);
+        // Don't fail the request if notifications fail
+      }
+
       res.status(201).json({
         message: 'Due created successfully and assigned to all active students',
         due_id: dueId
@@ -356,6 +379,9 @@ const getDueStatus = async (req, res) => {
 
     const { dueId } = req.params;
     const groupId = req.user.groupId;
+
+    // Update the statuses for this due
+    await updateDueStatuses(dueId);
 
     // Get due details and user statuses
     const result = await db.query(
@@ -393,18 +419,18 @@ const getDueStatus = async (req, res) => {
         user_id: row.user_id,
         user_name: row.user_name,
         status: row.status,
-        amount_paid: row.amount_paid,
+        amount_paid: parseFloat(row.amount_paid) || 0,
         last_payment_date: row.last_payment_date,
         payments: paymentsResult.rows.map(p => ({
           id: p.id,
-          amount: p.amount,
+          amount: parseFloat(p.amount) || 0,
           method: p.method,
           status: p.status,
           reference_id: p.reference_id,
           receipt_url: p.receipt_url,
           created_at: p.created_at,
           verified_at: p.verified_at,
-          amount_allocated: p.amount_allocated
+          amount_allocated: parseFloat(p.amount_allocated) || 0
         }))
       };
     }));
@@ -414,7 +440,7 @@ const getDueStatus = async (req, res) => {
       id: result.rows[0].id,
       title: result.rows[0].title,
       description: result.rows[0].description,
-      total_amount_due: result.rows[0].total_amount_due,
+      total_amount_due: parseFloat(result.rows[0].total_amount_due) || 0,
       due_date: result.rows[0].due_date,
       user_statuses: userStatuses
     };
@@ -448,7 +474,23 @@ const exportDueStatus = async (req, res) => {
          ud.status,
          ud.amount_paid,
          d.total_amount_due,
-         ud.last_payment_date
+         ud.last_payment_date,
+         (
+           SELECT p.reference_id
+           FROM payments p
+           JOIN payment_allocations_dues pad ON p.id = pad.payment_id
+           WHERE pad.user_due_id = ud.id AND p.status = 'verified'
+           ORDER BY p.created_at DESC
+           LIMIT 1
+         ) as reference_id,
+         (
+           SELECT p.method
+           FROM payments p
+           JOIN payment_allocations_dues pad ON p.id = pad.payment_id
+           WHERE pad.user_due_id = ud.id AND p.status = 'verified'
+           ORDER BY p.created_at DESC
+           LIMIT 1
+         ) as payment_method
        FROM dues d
        JOIN user_dues ud ON d.id = ud.due_id
        JOIN users u ON ud.user_id = u.id
@@ -461,12 +503,61 @@ const exportDueStatus = async (req, res) => {
       return res.status(404).json({ error: 'Due not found' });
     }
 
+    // Format date function
+    const formatDate = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const formattedHours = hours % 12 || 12;
+      const formattedMinutes = minutes.toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${formattedHours}:${formattedMinutes}${ampm} ${month}/${day}/${year}`;
+    };
+
+    // Calculate totals
+    let totalPaid = 0;
+    let totalGcash = 0;
+    let totalCash = 0;
+    let totalMaya = 0;
+    let totalOthers = 0;
+
+    result.rows.forEach(row => {
+      const amountPaid = parseFloat(row.amount_paid) || 0;
+      totalPaid += amountPaid;
+      
+      if (row.payment_method === 'gcash') {
+        totalGcash += amountPaid;
+      } else if (row.payment_method === 'cash') {
+        totalCash += amountPaid;
+      } else if (row.payment_method === 'maya') {
+        totalMaya += amountPaid;
+      } else if (row.payment_method && amountPaid > 0) {
+        totalOthers += amountPaid;
+      }
+    });
+
     // Generate CSV content
-    const csvHeader = 'Last Name,First Name,Status,Amount Paid,Total Amount Due,Last Payment Date\n';
+    const csvHeader = 'Last Name,First Name,Status,Amount Paid,Total Amount Due,Last Payment Date,Ref ID,Payment Method\n';
     const csvRows = result.rows.map(row => 
-      `${row.last_name},${row.first_name},${row.status},${row.amount_paid},${row.total_amount_due},${row.last_payment_date || ''}`
+      `${row.last_name},${row.first_name},${row.status},${row.amount_paid},${row.total_amount_due},${formatDate(row.last_payment_date)},${row.reference_id || ''},${row.payment_method || ''}`
     ).join('\n');
-    const csvContent = csvHeader + csvRows;
+    
+    // Add summary rows
+    const summaryRows = [
+      '\n\nSummary,,,,,,,,',
+      `Total Paid,,,${totalPaid.toFixed(2)},,,,`,
+      `Total GCash,,,${totalGcash.toFixed(2)},,,,`,
+      `Total Cash,,,${totalCash.toFixed(2)},,,,`,
+      `Total Maya,,,${totalMaya.toFixed(2)},,,,`,
+      `Total Others,,,${totalOthers.toFixed(2)},,,,`
+    ].join('\n');
+    
+    const csvContent = csvHeader + csvRows + summaryRows;
 
     // Set headers for CSV download
     res.setHeader('Content-Type', 'text/csv');
@@ -512,7 +603,10 @@ const getPendingPayments = async (req, res) => {
     );
 
     res.json({
-      payments: result.rows
+      payments: result.rows.map(row => ({
+        ...row,
+        amount: parseFloat(row.amount) || 0
+      }))
     });
   } catch (error) {
     console.error('Get pending payments error:', error);
@@ -594,6 +688,37 @@ const verifyPayment = async (req, res) => {
     }
 
     await client.query('COMMIT');
+    
+    // Send verification notification
+    try {
+      // Get user and payment details for notification
+      const userResult = await db.query(
+        `SELECT u.id, u.email, u.first_name, p.amount, p.method, d.title
+         FROM payments p
+         JOIN users u ON p.user_id = u.id
+         JOIN payment_allocations_dues pad ON p.id = pad.payment_id
+         JOIN user_dues ud ON pad.user_due_id = ud.id
+         JOIN dues d ON ud.due_id = d.id
+         WHERE p.id = $1`,
+        [paymentId]
+      );
+      
+      if (userResult.rows.length > 0) {
+        const userData = userResult.rows[0];
+        await notificationService.notifyPaymentVerified({
+          userId: userData.id,
+          userEmail: userData.email,
+          userName: userData.first_name,
+          amount: parseFloat(userData.amount),
+          dueTitle: userData.title,
+          paymentMethod: userData.method,
+          paymentId: paymentId
+        });
+      }
+    } catch (notificationError) {
+      console.error('Failed to send verification notification:', notificationError);
+    }
+    
     res.json({ message: 'Payment verified successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -617,33 +742,57 @@ const rejectPayment = async (req, res) => {
     }
 
     const { paymentId } = req.params;
+    const { reason = 'Payment information does not match our records' } = req.body;
     const groupId = req.user.groupId;
 
     await client.query('BEGIN');
 
-    // Verify payment belongs to treasurer's group and is pending
-    const result = await client.query(
-      `UPDATE payments p
-       SET status = 'rejected',
-           verified_at = NOW(),
-           verified_by_user_id = $1
-       FROM payment_allocations_dues pad
+    // Get payment details before updating
+    const paymentDetailsResult = await client.query(
+      `SELECT p.*, u.id as user_id, u.email, u.first_name, d.title
+       FROM payments p
+       JOIN users u ON p.user_id = u.id
+       JOIN payment_allocations_dues pad ON p.id = pad.payment_id
        JOIN user_dues ud ON pad.user_due_id = ud.id
        JOIN dues d ON ud.due_id = d.id
-       WHERE p.id = $2 
-         AND pad.payment_id = p.id
-         AND d.group_id = $3 
-         AND p.status = 'pending_verification'
-       RETURNING p.id`,
-      [req.user.userId, paymentId, groupId]
+       WHERE p.id = $1 AND d.group_id = $2 AND p.status = 'pending_verification'`,
+      [paymentId, groupId]
     );
 
-    if (result.rows.length === 0) {
+    if (paymentDetailsResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Payment not found or already processed' });
     }
 
+    const paymentDetails = paymentDetailsResult.rows[0];
+
+    // Update payment status
+    await client.query(
+      `UPDATE payments 
+       SET status = 'rejected',
+           verified_at = NOW(),
+           verified_by_user_id = $1
+       WHERE id = $2`,
+      [req.user.userId, paymentId]
+    );
+
     await client.query('COMMIT');
+    
+    // Send rejection notification
+    try {
+      await notificationService.notifyPaymentRejected({
+        userId: paymentDetails.user_id,
+        userEmail: paymentDetails.email,
+        userName: paymentDetails.first_name,
+        amount: parseFloat(paymentDetails.amount),
+        dueTitle: paymentDetails.title,
+        rejectionReason: reason,
+        paymentId: paymentId
+      });
+    } catch (notificationError) {
+      console.error('Failed to send rejection notification:', notificationError);
+    }
+    
     res.json({ message: 'Payment rejected successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -997,7 +1146,7 @@ const getGroupDetails = async (req, res) => {
     const result = await db.query(
       `SELECT 
          g.id,
-         g.name,
+         g.group_name,
          g.description,
          (SELECT COUNT(*) FROM users WHERE group_id = g.id AND role IN ('student', 'finance_coordinator')) as total_students,
          (SELECT COUNT(*) FROM dues WHERE group_id = g.id) as total_dues,
@@ -1069,21 +1218,1015 @@ const deleteDue = async (req, res) => {
   }
 };
 
+/**
+ * Get all members (students and FCs) in the Treasurer's group
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getMembers = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+    const groupId = req.user.groupId;
+    if (!groupId) {
+      return res.status(400).json({ error: 'No group assigned to treasurer' });
+    }
+    const result = await db.query(
+      `SELECT id, first_name, last_name, email, role
+       FROM users
+       WHERE group_id = $1 AND role IN ('student', 'finance_coordinator')
+       ORDER BY last_name, first_name`,
+      [groupId]
+    );
+    res.json({ members: result.rows });
+  } catch (error) {
+    console.error('Get members error:', error);
+    res.status(500).json({ error: 'Server error while fetching members' });
+  }
+};
+
+/**
+ * Update due date for a specific due
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateDueDate = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { dueId } = req.params;
+    const { due_date } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!due_date) {
+      return res.status(400).json({ error: 'Due date is required' });
+    }
+
+    // Update the due date
+    const result = await db.query(
+      `UPDATE dues 
+       SET due_date = $1
+       WHERE id = $2 AND group_id = $3
+       RETURNING id, title, due_date`,
+      [due_date, dueId, groupId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Due not found' });
+    }
+
+    // Check for overdue payments and update statuses
+    await updateDueStatuses(dueId);
+
+    res.json({
+      message: 'Due date updated successfully',
+      due: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update due date error:', error);
+    res.status(500).json({ error: 'Server error while updating due date' });
+  }
+};
+
+/**
+ * Helper function to update due statuses, especially for overdue items
+ * @param {number} dueId - The ID of the due to update statuses for
+ */
+const updateDueStatuses = async (dueId) => {
+  try {
+    // Get the due details
+    const dueResult = await db.query(
+      `SELECT id, due_date, total_amount_due FROM dues WHERE id = $1`,
+      [dueId]
+    );
+    
+    if (dueResult.rows.length === 0) return;
+    
+    const due = dueResult.rows[0];
+    const currentDate = new Date();
+    const dueDate = new Date(due.due_date);
+    
+    // If due date has passed, mark only PENDING dues as overdue (not partially_paid)
+    if (dueDate < currentDate) {
+      await db.query(
+        `UPDATE user_dues 
+         SET status = 'overdue' 
+         WHERE due_id = $1 AND status = 'pending' 
+         AND amount_paid = 0`,
+        [dueId]
+      );
+    } else {
+      // If due date is in the future, revert overdue status to pending
+      // (partially_paid should never have been overdue in the first place)
+      await db.query(
+        `UPDATE user_dues 
+         SET status = 'pending' 
+         WHERE due_id = $1 AND status = 'overdue'`,
+        [dueId]
+      );
+    }
+  } catch (error) {
+    console.error('Update due statuses error:', error);
+  }
+};
+
+/**
+ * Update statuses for all dues in the system
+ * This is especially useful when loading the dues list to ensure overdue status is updated
+ * @param {number} groupId - The group ID to update dues for
+ */
+const updateAllDueStatuses = async (groupId) => {
+  try {
+    // Get all dues for this group
+    const duesResult = await db.query(
+      `SELECT id FROM dues WHERE group_id = $1`,
+      [groupId]
+    );
+    
+    // Update statuses for each due
+    for (const due of duesResult.rows) {
+      await updateDueStatuses(due.id);
+    }
+  } catch (error) {
+    console.error('Update all due statuses error:', error);
+  }
+};
+
+/**
+ * Get all checklists for the treasurer's group
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getChecklists = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const groupId = req.user.groupId;
+    
+    const result = await db.query(
+      `SELECT 
+         c.id, 
+         c.title, 
+         c.description, 
+         c.due_date, 
+         c.created_at,
+         COUNT(ci.id) as total_items,
+         COUNT(CASE WHEN ci.status = 'completed' THEN 1 END) as completed_items,
+         json_agg(json_build_object(
+           'id', ci.id,
+           'title', ci.title, 
+           'description', ci.description,
+           'status', ci.status
+         )) as items
+       FROM checklists c
+       LEFT JOIN checklist_items ci ON c.id = ci.checklist_id
+       WHERE c.group_id = $1
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`,
+      [groupId]
+    );
+
+    res.json({
+      checklists: result.rows.map(row => ({
+        ...row,
+        items: row.items[0].id ? row.items : [] // Handle case where no items exist
+      }))
+    });
+  } catch (error) {
+    console.error('Get checklists error:', error);
+    res.status(500).json({ error: 'Server error while fetching checklists' });
+  }
+};
+
+/**
+ * Create a new checklist
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const createChecklist = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { title, description, due_date, items } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!title || !due_date) {
+      return res.status(400).json({ error: 'Title and due date are required' });
+    }
+
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Create the checklist
+      const checklistResult = await client.query(
+        `INSERT INTO checklists (
+          created_by_user_id, group_id, title, description, due_date
+        ) VALUES ($1, $2, $3, $4, $5)
+        RETURNING id`,
+        [req.user.userId, groupId, title, description, due_date]
+      );
+
+      const checklistId = checklistResult.rows[0].id;
+
+      // Create checklist items if provided
+      if (items && items.length > 0) {
+        for (const item of items) {
+          await client.query(
+            `INSERT INTO checklist_items (
+              checklist_id, title, description, status
+            ) VALUES ($1, $2, $3, 'pending')`,
+            [checklistId, item.title, item.description]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+
+      res.status(201).json({
+        message: 'Checklist created successfully',
+        checklist_id: checklistId
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Create checklist error:', error);
+    res.status(500).json({ error: 'Server error while creating checklist' });
+  }
+};
+
+/**
+ * Get detailed checklist with student statuses
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getChecklistStatus = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId } = req.params;
+    const groupId = req.user.groupId;
+
+    // Verify the checklist belongs to the treasurer's group
+    const checklistResult = await db.query(
+      `SELECT id, title, description, due_date 
+       FROM checklists 
+       WHERE id = $1 AND group_id = $2`,
+      [checklistId, groupId]
+    );
+
+    if (checklistResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist not found' });
+    }
+
+    const checklist = checklistResult.rows[0];
+
+    // Get checklist items
+    const itemsResult = await db.query(
+      `SELECT id, title, description, status
+       FROM checklist_items
+       WHERE checklist_id = $1
+       ORDER BY id`,
+      [checklistId]
+    );
+
+    // Get all students in the group
+    const studentsResult = await db.query(
+      `SELECT id, first_name, last_name
+       FROM users
+       WHERE group_id = $1 AND role IN ('student', 'finance_coordinator')
+       ORDER BY last_name, first_name`,
+      [groupId]
+    );
+
+    // Get student completion status for each item
+    const statusResult = await db.query(
+      `SELECT cs.user_id, cs.checklist_item_id, cs.status
+       FROM checklist_student_status cs
+       JOIN checklist_items ci ON cs.checklist_item_id = ci.id
+       WHERE ci.checklist_id = $1`,
+      [checklistId]
+    );
+
+    // Build the response
+    const studentStatuses = studentsResult.rows.map(student => {
+      const itemStatuses = itemsResult.rows.map(item => {
+        const studentStatus = statusResult.rows.find(
+          status => status.user_id === student.id && status.checklist_item_id === item.id
+        );
+        return {
+          item_id: item.id,
+          status: studentStatus ? studentStatus.status : 'pending'
+        };
+      });
+
+      return {
+        user_id: student.id,
+        user_name: `${student.first_name} ${student.last_name}`,
+        item_statuses: itemStatuses
+      };
+    });
+
+    res.json({
+      checklist: {
+        id: checklist.id,
+        title: checklist.title,
+        description: checklist.description,
+        due_date: checklist.due_date,
+        items: itemsResult.rows,
+        student_statuses: studentStatuses
+      }
+    });
+  } catch (error) {
+    console.error('Get checklist status error:', error);
+    res.status(500).json({ error: 'Server error while fetching checklist status' });
+  }
+};
+
+/**
+ * Add a new item to an existing checklist
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const addChecklistItem = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId } = req.params;
+    const { title, description } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ error: 'Item title is required' });
+    }
+
+    // Verify the checklist belongs to the treasurer's group
+    const checklistResult = await db.query(
+      `SELECT id FROM checklists WHERE id = $1 AND group_id = $2`,
+      [checklistId, groupId]
+    );
+
+    if (checklistResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist not found' });
+    }
+
+    // Add the new item
+    const itemResult = await db.query(
+      `INSERT INTO checklist_items (checklist_id, title, description, status)
+       VALUES ($1, $2, $3, 'pending')
+       RETURNING id, title, description, status`,
+      [checklistId, title, description]
+    );
+
+    res.status(201).json({
+      message: 'Checklist item added successfully',
+      item: itemResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Add checklist item error:', error);
+    res.status(500).json({ error: 'Server error while adding checklist item' });
+  }
+};
+
+/**
+ * Update student status for a checklist item
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateChecklistItemStatus = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId, itemId, userId } = req.params;
+    const { status } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!status || !['pending', 'completed'].includes(status)) {
+      return res.status(400).json({ error: 'Valid status (pending/completed) is required' });
+    }
+
+    // Verify the checklist belongs to the treasurer's group
+    const checklistResult = await db.query(
+      `SELECT c.id 
+       FROM checklists c
+       JOIN checklist_items ci ON c.id = ci.checklist_id
+       WHERE c.id = $1 AND c.group_id = $2 AND ci.id = $3`,
+      [checklistId, groupId, itemId]
+    );
+
+    if (checklistResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist or item not found' });
+    }
+
+    // Verify the user belongs to the treasurer's group
+    const userResult = await db.query(
+      `SELECT id FROM users WHERE id = $1 AND group_id = $2`,
+      [userId, groupId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found in the group' });
+    }
+
+    // Upsert the student status
+    await db.query(
+      `INSERT INTO checklist_student_status (user_id, checklist_item_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, checklist_item_id) 
+       DO UPDATE SET status = $3`,
+      [userId, itemId, status]
+    );
+
+    res.json({
+      message: 'Checklist item status updated successfully',
+      user_id: userId,
+      checklist_item_id: itemId,
+      status
+    });
+  } catch (error) {
+    console.error('Update checklist item status error:', error);
+    res.status(500).json({ error: 'Server error while updating checklist item status' });
+  }
+};
+
+/**
+ * Delete a checklist and all its items
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const deleteChecklist = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId } = req.params;
+    const groupId = req.user.groupId;
+
+    // Verify the checklist belongs to the treasurer's group
+    const checklistResult = await db.query(
+      `SELECT id FROM checklists WHERE id = $1 AND group_id = $2`,
+      [checklistId, groupId]
+    );
+
+    if (checklistResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist not found' });
+    }
+
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Delete checklist student statuses
+      await client.query(
+        `DELETE FROM checklist_student_status
+         WHERE checklist_item_id IN (
+           SELECT id FROM checklist_items WHERE checklist_id = $1
+         )`,
+        [checklistId]
+      );
+
+      // Delete checklist items
+      await client.query(
+        `DELETE FROM checklist_items WHERE checklist_id = $1`,
+        [checklistId]
+      );
+
+      // Delete the checklist
+      await client.query(
+        `DELETE FROM checklists WHERE id = $1`,
+        [checklistId]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        message: 'Checklist deleted successfully'
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Delete checklist error:', error);
+    res.status(500).json({ error: 'Server error while deleting checklist' });
+  }
+};
+
+/**
+ * Update a checklist item
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateChecklistItem = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId, itemId } = req.params;
+    const { title, description } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ error: 'Item title is required' });
+    }
+
+    // Verify the checklist belongs to the treasurer's group and the item exists
+    const checklistItemResult = await db.query(
+      `SELECT ci.id 
+       FROM checklist_items ci
+       JOIN checklists c ON ci.checklist_id = c.id
+       WHERE ci.id = $1 AND ci.checklist_id = $2 AND c.group_id = $3`,
+      [itemId, checklistId, groupId]
+    );
+
+    if (checklistItemResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist item not found' });
+    }
+
+    // Update the item
+    const result = await db.query(
+      `UPDATE checklist_items 
+       SET title = $1, description = $2, updated_at = NOW()
+       WHERE id = $3 AND checklist_id = $4
+       RETURNING id, title, description, status`,
+      [title, description, itemId, checklistId]
+    );
+
+    res.json({
+      message: 'Checklist item updated successfully',
+      item: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update checklist item error:', error);
+    res.status(500).json({ error: 'Server error while updating checklist item' });
+  }
+};
+
+/**
+ * Delete a checklist item
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const deleteChecklistItem = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId, itemId } = req.params;
+    const groupId = req.user.groupId;
+
+    // Verify the checklist belongs to the treasurer's group and the item exists
+    const checklistItemResult = await db.query(
+      `SELECT ci.id 
+       FROM checklist_items ci
+       JOIN checklists c ON ci.checklist_id = c.id
+       WHERE ci.id = $1 AND ci.checklist_id = $2 AND c.group_id = $3`,
+      [itemId, checklistId, groupId]
+    );
+
+    if (checklistItemResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist item not found' });
+    }
+
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Delete item status records for all students
+      await client.query(
+        `DELETE FROM checklist_student_status
+         WHERE checklist_item_id = $1`,
+        [itemId]
+      );
+
+      // Delete the item
+      await client.query(
+        `DELETE FROM checklist_items WHERE id = $1`,
+        [itemId]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        message: 'Checklist item deleted successfully'
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Delete checklist item error:', error);
+    res.status(500).json({ error: 'Server error while deleting checklist item' });
+  }
+};
+
+/**
+ * Export checklist status to CSV with item numbers as headers
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const exportChecklistStatus = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { checklistId } = req.params;
+    const groupId = req.user.groupId;
+
+    // Verify the checklist belongs to the treasurer's group
+    const checklistResult = await db.query(
+      `SELECT id, title, description, due_date 
+       FROM checklists 
+       WHERE id = $1 AND group_id = $2`,
+      [checklistId, groupId]
+    );
+
+    if (checklistResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Checklist not found' });
+    }
+
+    const checklist = checklistResult.rows[0];
+
+    // Get checklist items
+    const itemsResult = await db.query(
+      `SELECT id, title, description
+       FROM checklist_items
+       WHERE checklist_id = $1
+       ORDER BY id`,
+      [checklistId]
+    );
+
+    // Get all students in the group
+    const studentsResult = await db.query(
+      `SELECT id, first_name, last_name
+       FROM users
+       WHERE group_id = $1 AND role IN ('student', 'finance_coordinator')
+       ORDER BY last_name, first_name`,
+      [groupId]
+    );
+
+    // Get student completion status for each item
+    const statusResult = await db.query(
+      `SELECT cs.user_id, cs.checklist_item_id, cs.status
+       FROM checklist_student_status cs
+       JOIN checklist_items ci ON cs.checklist_item_id = ci.id
+       WHERE ci.checklist_id = $1`,
+      [checklistId]
+    );
+
+    // Create CSV headers with item numbers
+    let headers = ['Student Name'];
+    
+    // Map of items with their titles for the CSV header
+    const itemTitles = itemsResult.rows.map((item, index) => ({
+      id: item.id,
+      title: item.title,
+      index: index + 1 // 1-based index for item numbers
+    }));
+    
+    // Add item numbers and titles to header
+    itemTitles.forEach(item => {
+      headers.push(`${item.index}. ${item.title}`);
+    });
+
+    // Create CSV rows
+    const rows = studentsResult.rows.map(student => {
+      const row = [
+        `${student.last_name}, ${student.first_name}`
+      ];
+      
+      // Add status for each item
+      itemTitles.forEach(item => {
+        const studentStatus = statusResult.rows.find(
+          status => status.user_id === student.id && status.checklist_item_id === item.id
+        );
+        const status = studentStatus ? studentStatus.status : 'pending';
+        // Use symbols: ✔ for completed, X for pending
+        row.push(status === 'completed' ? '✔' : 'X');
+      });
+      
+      return row;
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Set headers for CSV download with the checklist title in filename
+    const filename = `${checklist.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_checklist.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Export checklist status error:', error);
+    res.status(500).json({ error: 'Server error while exporting checklist status' });
+  }
+};
+
+/**
+ * Update user payment status and amount for a specific due
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updateUserPaymentStatus = async (req, res) => {
+  const client = await db.connect();
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { dueId, userId } = req.params;
+    const { status, amount_paid } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate input
+    if (!status || amount_paid === undefined) {
+      return res.status(400).json({ error: 'Status and amount_paid are required' });
+    }
+
+    const validStatuses = ['pending', 'partially_paid', 'paid', 'overdue'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    if (isNaN(amount_paid) || amount_paid < 0) {
+      return res.status(400).json({ error: 'Amount must be a valid non-negative number' });
+    }
+
+    await client.query('BEGIN');
+
+    // Verify the due belongs to the treasurer's group and user_due exists
+    const verifyResult = await client.query(
+      `SELECT ud.id, d.total_amount_due, d.title, u.first_name, u.email
+       FROM user_dues ud
+       JOIN dues d ON ud.due_id = d.id
+       JOIN users u ON ud.user_id = u.id
+       WHERE d.id = $1 AND ud.user_id = $2 AND d.group_id = $3`,
+      [dueId, userId, groupId]
+    );
+
+    if (verifyResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Due or user not found in your group' });
+    }
+
+    const { id: userDueId, total_amount_due, title: dueTitle, first_name: userName, email: userEmail } = verifyResult.rows[0];
+
+    // Update the user_dues record
+    await client.query(
+      `UPDATE user_dues 
+       SET amount_paid = $1, 
+           status = $2,
+           last_payment_date = CASE WHEN $1 > amount_paid THEN NOW() ELSE last_payment_date END
+       WHERE id = $3`,
+      [amount_paid, status, userDueId]
+    );
+
+    await client.query('COMMIT');
+
+    // Send notification if payment was marked as verified
+    if (status === 'paid' || status === 'partially_paid') {
+      try {
+        await notificationService.notifyPaymentVerified({
+          userId: userId,
+          userEmail: userEmail,
+          userName: userName,
+          amount: parseFloat(amount_paid),
+          dueTitle: dueTitle,
+          paymentMethod: 'manual_update',
+          paymentId: null
+        });
+      } catch (notificationError) {
+        console.error('Failed to send payment status notification:', notificationError);
+      }
+    }
+
+    res.json({ 
+      message: 'Payment status updated successfully',
+      updated: {
+        user_due_id: userDueId,
+        status,
+        amount_paid: parseFloat(amount_paid)
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Update user payment status error:', error);
+    res.status(500).json({ error: 'Server error while updating payment status' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Batch update multiple user payment statuses and amounts for a specific due
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const batchUpdateUserPaymentStatus = async (req, res) => {
+  const client = await db.connect();
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { dueId } = req.params;
+    const { updates } = req.body; // Array of { userId, status, amount_paid }
+    const groupId = req.user.groupId;
+
+    // Validate input
+    if (!updates || !Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: 'Updates array is required and must not be empty' });
+    }
+
+    const validStatuses = ['pending', 'partially_paid', 'paid', 'overdue'];
+    
+    // Validate each update
+    for (const update of updates) {
+      if (!update.userId || !update.status || update.amount_paid === undefined) {
+        return res.status(400).json({ error: 'Each update must have userId, status, and amount_paid' });
+      }
+      
+      if (!validStatuses.includes(update.status)) {
+        return res.status(400).json({ error: `Invalid status: ${update.status}` });
+      }
+      
+      if (isNaN(update.amount_paid) || update.amount_paid < 0) {
+        return res.status(400).json({ error: 'Amount must be a valid non-negative number' });
+      }
+    }
+
+    await client.query('BEGIN');
+
+    // Verify the due belongs to the treasurer's group
+    const dueResult = await client.query(
+      `SELECT d.id, d.total_amount_due, d.title, d.group_id
+       FROM dues d
+       WHERE d.id = $1 AND d.group_id = $2`,
+      [dueId, groupId]
+    );
+
+    if (dueResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Due not found in your group' });
+    }
+
+    const { total_amount_due, title: dueTitle } = dueResult.rows[0];
+    const updatedRecords = [];
+    const notificationPromises = [];
+
+    // Process each update
+    for (const update of updates) {
+      const { userId, status, amount_paid } = update;
+
+      // Validate amount doesn't exceed total due
+      if (amount_paid > total_amount_due) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Amount ${amount_paid} exceeds total due amount ${total_amount_due} for user ${userId}` 
+        });
+      }
+
+      // Verify user_due exists for this user and due
+      const userDueResult = await client.query(
+        `SELECT ud.id, u.first_name, u.email, ud.amount_paid as old_amount
+         FROM user_dues ud
+         JOIN users u ON ud.user_id = u.id
+         WHERE ud.due_id = $1 AND ud.user_id = $2`,
+        [dueId, userId]
+      );
+
+      if (userDueResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: `User ${userId} not found for this due` });
+      }
+
+      const { id: userDueId, first_name: userName, email: userEmail, old_amount } = userDueResult.rows[0];
+
+      // Update the user_dues record
+      await client.query(
+        `UPDATE user_dues 
+         SET amount_paid = $1, 
+             status = $2,
+             last_payment_date = CASE WHEN $1 > $3 THEN NOW() ELSE last_payment_date END
+         WHERE id = $4`,
+        [amount_paid, status, old_amount, userDueId]
+      );
+
+      updatedRecords.push({
+        user_due_id: userDueId,
+        user_id: userId,
+        status,
+        amount_paid: parseFloat(amount_paid),
+        old_amount: parseFloat(old_amount)
+      });
+
+      // Queue notification if payment was marked as verified and amount increased
+      if ((status === 'paid' || status === 'partially_paid') && amount_paid > old_amount) {
+        notificationPromises.push(
+          notificationService.notifyPaymentVerified({
+            userId: userId,
+            userEmail: userEmail,
+            userName: userName,
+            amount: parseFloat(amount_paid),
+            dueTitle: dueTitle,
+            paymentMethod: 'manual_batch_update',
+            paymentId: null
+          }).catch(error => {
+            console.error(`Failed to send notification to user ${userId}:`, error);
+          })
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // Send notifications asynchronously (don't wait for them)
+    if (notificationPromises.length > 0) {
+      Promise.all(notificationPromises).catch(error => {
+        console.error('Some notifications failed to send:', error);
+      });
+    }
+
+    res.json({ 
+      message: `Successfully updated ${updatedRecords.length} payment records`,
+      updated: updatedRecords
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Batch update user payment status error:', error);
+    res.status(500).json({ error: 'Server error while updating payment statuses' });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
+  getProfile,
+  updateProfile,
   getDashboardData,
-  getStats,
   getDues,
   createDue,
   getDueStatus,
   exportDueStatus,
-  getPendingPayments,
-  verifyPayment,
-  rejectPayment,
   exportPayments,
   exportSummaryReport,
   exportStudentList,
-  getProfile,
-  updateProfile,
+  verifyPayment,
+  rejectPayment,
+  getPendingPayments,
+  getStats,
   getGroupDetails,
-  deleteDue
+  deleteDue,
+  getMembers,
+  updateDueDate,
+  updateDueStatuses,
+  updateAllDueStatuses,
+  getChecklists,
+  createChecklist,
+  getChecklistStatus,
+  addChecklistItem,
+  updateChecklistItemStatus,
+  deleteChecklist,
+  updateChecklistItem,
+  deleteChecklistItem,
+  exportChecklistStatus,
+  updateUserPaymentStatus,
+  batchUpdateUserPaymentStatus
 }; 

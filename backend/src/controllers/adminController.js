@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 
 /**
- * Get all thesis weeks
+ * Get all thesis weeks (optionally filtered by group_id)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -18,11 +18,25 @@ const getThesisWeeks = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
 
-    const result = await db.query(
-      `SELECT id, week_number, start_date, end_date
-       FROM thesis_weeks
-       ORDER BY week_number ASC`
-    );
+    const { group_id } = req.query;
+    let result;
+    if (group_id) {
+      result = await db.query(
+        `SELECT w.id, w.week_number, w.start_date, w.end_date, w.group_id, g.group_name
+         FROM thesis_weeks w
+         LEFT JOIN groups g ON w.group_id = g.id
+         WHERE w.group_id = $1
+         ORDER BY w.week_number ASC`,
+        [group_id]
+      );
+    } else {
+      result = await db.query(
+        `SELECT w.id, w.week_number, w.start_date, w.end_date, w.group_id, g.group_name
+         FROM thesis_weeks w
+         LEFT JOIN groups g ON w.group_id = g.id
+         ORDER BY w.week_number ASC`
+      );
+    }
 
     res.json({
       thesis_weeks: result.rows
@@ -34,7 +48,7 @@ const getThesisWeeks = async (req, res) => {
 };
 
 /**
- * Create or update a thesis week
+ * Create or update a thesis week (with group_id)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -45,10 +59,18 @@ const upsertThesisWeek = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
 
-    const { id, week_number, start_date, end_date } = req.body;
+    const { id, week_number, start_date, end_date, group_id } = req.body;
 
-    if (!week_number || !start_date || !end_date) {
-      return res.status(400).json({ error: 'Week number, start date, and end date are required' });
+    // Log received values for debugging date issues
+    console.log('upsertThesisWeek received:', {
+      week_number,
+      start_date,
+      end_date,
+      group_id
+    });
+
+    if (!week_number || !start_date || !end_date || !group_id) {
+      return res.status(400).json({ error: 'Week number, start date, end date, and group_id are required' });
     }
 
     let result;
@@ -56,18 +78,18 @@ const upsertThesisWeek = async (req, res) => {
       // Update existing thesis week
       result = await db.query(
         `UPDATE thesis_weeks
-         SET week_number = $1, start_date = $2, end_date = $3
-         WHERE id = $4
-         RETURNING id, week_number, start_date, end_date`,
-        [week_number, start_date, end_date, id]
+         SET week_number = $1, start_date = $2, end_date = $3, group_id = $4
+         WHERE id = $5
+         RETURNING id, week_number, start_date, end_date, group_id`,
+        [week_number, start_date, end_date, group_id, id]
       );
     } else {
       // Create new thesis week
       result = await db.query(
-        `INSERT INTO thesis_weeks (week_number, start_date, end_date)
-         VALUES ($1, $2, $3)
-         RETURNING id, week_number, start_date, end_date`,
-        [week_number, start_date, end_date]
+        `INSERT INTO thesis_weeks (week_number, start_date, end_date, group_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, week_number, start_date, end_date, group_id`,
+        [week_number, start_date, end_date, group_id]
       );
     }
 
@@ -246,7 +268,7 @@ const updateUserRole = async (req, res) => {
 };
 
 /**
- * Get all groups
+ * Get all groups (thesis groups only for admin)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -269,6 +291,7 @@ const getGroups = async (req, res) => {
          g.group_code,
          (SELECT COUNT(*) FROM users WHERE group_id = g.id) as member_count
        FROM groups g
+       WHERE g.group_type = 'thesis'
        ORDER BY g.group_name`
     );
 

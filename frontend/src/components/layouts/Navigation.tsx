@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import LogoutButton from './LogoutButton';
+import LogoutButton from '../ui/LogoutButton';
+import NavDropdown from '../ui/NavDropdown';
+import MobileNavDropdown from '../ui/MobileNavDropdown';
+import NotificationBell from '../ui/NotificationBell';
 
 interface NavigationProps {
   userRole: 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
@@ -14,6 +17,14 @@ interface NavItem {
   icon: React.ReactElement;
   roles?: string[];
 }
+
+interface NavCategory {
+  name: string;
+  icon: React.ReactElement;
+  items: NavItem[];
+}
+
+type NavItemOrCategory = NavItem | NavCategory;
 
 const TypewriterEffect: React.FC = () => {
   const phrases = [
@@ -52,14 +63,24 @@ const TypewriterEffect: React.FC = () => {
     "zengarden dev"
   ];
 
+  // Shuffle array using Fisher-Yates algorithm
+  const shuffleArray = (array: string[]) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
+
   const [currentText, setCurrentText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [phraseIndex, setPhraseIndex] = useState(Math.floor(Math.random() * phrases.length));
   const [typingSpeed, setTypingSpeed] = useState(150);
   const [pauseEnd, setPauseEnd] = useState(false);
+  const [shuffledPhrases] = useState(() => shuffleArray([...phrases]));
 
   useEffect(() => {
-    const currentPhrase = phrases[phraseIndex];
+    const currentPhrase = shuffledPhrases[phraseIndex];
     let timer: number | undefined;
 
     if (pauseEnd) {
@@ -72,7 +93,7 @@ const TypewriterEffect: React.FC = () => {
       // Delete characters
       if (currentText === "") {
         setIsDeleting(false);
-        setPhraseIndex((prev) => (prev + 1) % phrases.length);
+        setPhraseIndex((prev) => (prev + 1) % shuffledPhrases.length);
         setTypingSpeed(150); // Reset typing speed
       } else {
         timer = setTimeout(() => {
@@ -92,7 +113,7 @@ const TypewriterEffect: React.FC = () => {
     }
 
     return () => clearTimeout(timer);
-  }, [currentText, isDeleting, phraseIndex, phrases, typingSpeed, pauseEnd]);
+  }, [currentText, isDeleting, phraseIndex, shuffledPhrases, typingSpeed, pauseEnd]);
 
   return (
     <div className="italic text-xs text-gray-400 dark:text-gray-500 -mt-1 ml-0 min-w-[110px] h-4 text-left">
@@ -106,119 +127,174 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   
-  // Get navigation items based on user role
-  const getTreasurerNavItems = (): NavItem[] => [
-  {
-    name: 'Dashboard',
+  // Function to determine if an item is a category
+  const isCategory = (item: NavItemOrCategory): item is NavCategory => {
+    return 'items' in item;
+  };
+
+  // Get treasurer navigation with categories
+  const getTreasurerNavItems = (): NavItemOrCategory[] => [
+    {
+      name: 'Dashboard',
       href: '/treasurer',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-      )
-  },
-  {
-      name: 'Create Due',
-      href: '/treasurer/dues/new',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-      </svg>
-      )
-  },
-  {
-      name: 'Dues List',
-      href: '/treasurer/dues',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-      )
-  },
-  {
-      name: 'Pending Payments',
-      href: '/treasurer/payments/pending',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-      )
-  },
-  {
-      name: 'Export Data',
-      href: '/treasurer/export',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-      )
-    }
-  ];
-
-  const getFCNavItems = (): NavItem[] => [
-  {
-      name: 'Dashboard',
-      href: '/dashboard/fc',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-      )
-  },
-  {
-    name: 'Members',
-    href: '/members',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="4"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      </svg>
+        </svg>
       )
     },
     {
-      name: 'Verify Payments',
-      href: '/verify-payments',
+      name: 'Dues',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
+      items: [
+        {
+          name: 'Create Due',
+          href: '/treasurer/dues/new',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          )
+        },
+        {
+          name: 'Dues List',
+          href: '/treasurer/dues',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          )
+        }
+      ]
+    },
+    {
+      name: 'Checklists',
+      href: '/treasurer/checklists',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
       )
-  },
-  {
-    name: 'Loan Management',
-    href: '/loans',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    roles: ['finance_coordinator']
-  },
-  {
-    name: 'Expenses',
-    href: '/expenses',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    roles: ['finance_coordinator']
-  },
-  {
+    },
+    {
+      name: 'Payments',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      items: [
+        {
+          name: 'Pending Payments',
+          href: '/treasurer/payments/pending',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          )
+        },
+        {
+          name: 'Export Data',
+          href: '/treasurer/export',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          )
+        }
+      ]
+    },
+    {
+      name: 'Settings',
+      href: '/treasurer/settings',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 10c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+        </svg>
+      )
+    }
+  ];
+
+  // Get finance coordinator navigation with categories
+  const getFCNavItems = (): NavItemOrCategory[] => [
+    {
+      name: 'Dashboard',
+      href: '/dashboard/fc',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      )
+    },
+    {
+      name: 'Members',
+      href: '/members',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      )
+    },
+    {
+      name: 'Financial',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      items: [
+        {
+          name: 'Verify Payments',
+          href: '/verify-payments',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          )
+        },
+        {
+          name: 'Loan Management',
+          href: '/loans',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          ),
+          roles: ['finance_coordinator']
+        },
+        {
+          name: 'Expenses',
+          href: '/expenses',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+          roles: ['finance_coordinator']
+        }
+      ]
+    },
+    {
       name: 'Group Settings',
       href: '/group-settings',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
+        </svg>
       )
-  }
-];
+    }
+  ];
 
-  const getStudentNavItems = (): NavItem[] => [
+  // Keep student navigation simple
+  const getStudentNavItems = (): NavItemOrCategory[] => [
     {
       name: 'Dashboard',
       href: '/dashboard/student',
@@ -237,19 +313,9 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
         </svg>
       )
     }
-    // },
-    // {
-    //   name: 'My Loans',
-    //   href: '/loans/my-loans',
-    //   icon: (
-    //     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    //     </svg>
-    //   )
-    // }
   ];
 
-  const getSectionStudentNavItems = (): NavItem[] => [
+  const getSectionStudentNavItems = (): NavItemOrCategory[] => [
     {
       name: 'Dashboard',
       href: '/dashboard/section',
@@ -261,7 +327,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
     }
   ];
 
-  const getAdminNavItems = (): NavItem[] => [
+  const getAdminNavItems = (): NavItemOrCategory[] => [
     {
       name: 'Dashboard',
       href: '/admin',
@@ -270,12 +336,10 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       )
-    },
-
-
+    }
   ];
 
-  const getNavItems = (): NavItem[] => {
+  const getNavItems = (): NavItemOrCategory[] => {
     switch (userRole) {
       case 'treasurer':
         return getTreasurerNavItems();
@@ -319,6 +383,36 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
     setIsOpen(false);
   }, [location.pathname]);
 
+  const renderNavItem = (item: NavItem) => (
+    <Link
+      key={item.name}
+      to={item.href}
+      className={`${
+        isActive(item.href)
+          ? 'border-primary-500 text-gray-900 dark:text-white'
+          : 'border-transparent text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors`}
+    >
+      <span className="mr-2">{item.icon}</span>
+      {item.name}
+    </Link>
+  );
+
+  const renderMobileNavItem = (item: NavItem) => (
+    <Link
+      key={item.name}
+      to={item.href}
+      className={`${
+        isActive(item.href)
+          ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-400'
+          : 'border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700'
+      } block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors`}
+    >
+      <span className="mr-2">{item.icon}</span>
+      {item.name}
+    </Link>
+  );
+
   return (
     <nav className="bg-white dark:bg-neutral-800 shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -330,27 +424,28 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
               </span>
               <TypewriterEffect />
             </div>
+            
             {/* Desktop Navigation */}
             <div className="hidden lg:ml-6 lg:flex lg:space-x-4">
               {getNavItems().map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`${
-                    isActive(item.href)
-                      ? 'border-primary-500 text-gray-900 dark:text-white'
-                      : 'border-transparent text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
-                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors`}
-                >
-                  <span className="mr-2">{item.icon}</span>
-                  {item.name}
-                </Link>
+                isCategory(item) ? (
+                  <NavDropdown 
+                    key={item.name}
+                    label={item.name}
+                    icon={item.icon}
+                    items={item.items}
+                    isActive={isActive}
+                  />
+                ) : (
+                  renderNavItem(item)
+                )
               ))}
             </div>
           </div>
 
           {/* Profile and Logout Section - Desktop */}
           <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
+            <NotificationBell />
             <Link
               to={`/profile`}
               className={`${
@@ -397,18 +492,17 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
       <div className={`${isOpen ? 'block' : 'hidden'} lg:hidden transition-all duration-200 ease-in-out`}>
         <div className="pt-2 pb-3 space-y-1">
           {getNavItems().map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={`${
-                isActive(item.href)
-                  ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700'
-              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium flex items-center transition-colors`}
-            >
-              <span className="mr-2">{item.icon}</span>
-              {item.name}
-            </Link>
+            isCategory(item) ? (
+              <MobileNavDropdown
+                key={item.name}
+                label={item.name}
+                icon={item.icon}
+                items={item.items}
+                isActive={isActive}
+              />
+            ) : (
+              renderMobileNavItem(item)
+            )
           ))}
           <Link
             to={`/profile`}

@@ -26,6 +26,8 @@ import DuesList from './components/treasurer/DuesList';
 import DueDetails from './components/treasurer/DueDetails';
 import PendingPayments from './components/treasurer/PendingPayments';
 import ExportData from './components/treasurer/ExportData';
+import ChecklistPage from './components/treasurer/ChecklistPage';
+import ChecklistDetails from './components/treasurer/ChecklistDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 //import TreasurerProfile from './components/treasurer/TreasurerProfile';
 import JoinGroupStep from './components/auth/JoinGroupStep';
@@ -40,6 +42,7 @@ import Expenses from './components/fc/Expenses';
 import LoanManagement from './components/fc/LoanManagement';
 import LoanDisbursement from './components/fc/LoanDisbursement';
 import PayExpense from './pages/PayExpense';
+import TreasurerSettings from './components/treasurer/TreasurerSettings';
 
 function RequireGroup({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -128,7 +131,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           <Route path="/loans/request" element={<LoanRequest />} />
           <Route path="/loans/my-loans" element={<MyLoans />} />
           <Route
@@ -232,6 +234,27 @@ function App() {
               <ProtectedRoute role="treasurer">
                 <RequireGroup>
                   <ExportData />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/treasurer/settings" element={<TreasurerSettings />} />
+          <Route
+            path="/treasurer/checklists"
+            element={
+              <ProtectedRoute role="treasurer">
+                <RequireGroup>
+                  <ChecklistPage />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/treasurer/checklists/:checklistId"
+            element={
+              <ProtectedRoute role="treasurer">
+                <RequireGroup>
+                  <ChecklistDetails />
                 </RequireGroup>
               </ProtectedRoute>
             }

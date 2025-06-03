@@ -5,7 +5,7 @@ import Button from '../ui/Button';
 import Card from '../ui/Card';
 import { useToast } from '../../context/ToastContext';
 import ConfirmModal from '../ui/ConfirmModal';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import DashboardCard from '../dashboard/DashboardCard';
 
 interface Payment {
@@ -68,7 +68,11 @@ const PendingPayments = () => {
       setPayments(data.payments);
 
       // Calculate stats
-      const totalAmount = data.payments.reduce((sum: number, p: Payment) => sum + p.amount, 0);
+      const totalAmount = data.payments.reduce((sum: number, p: Payment) => {
+        // Handle null/undefined amounts safely
+        const amount = p.amount || 0;
+        return sum + amount;
+      }, 0);
       const byMethod = data.payments.reduce((acc: any, p: Payment) => {
         acc[p.method] = (acc[p.method] || 0) + 1;
         return acc;
@@ -146,10 +150,12 @@ const PendingPayments = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   const filteredPayments = payments.filter(payment => {

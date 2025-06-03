@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getApiUrl } from '../../utils/api';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
@@ -55,11 +55,7 @@ const GroupsAdmin = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
-
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -75,11 +71,16 @@ const GroupsAdmin = () => {
       const data = await response.json();
       setGroups(data.groups || []);
     } catch (error) {
+      console.error('Error fetching groups:', error);
       showToast('Failed to load groups', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
 
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +116,7 @@ const GroupsAdmin = () => {
       });
       showToast('Group created successfully', 'success');
     } catch (error) {
+      console.error('Error creating group:', error);
       showToast('Failed to create group', 'error');
     }
   };
@@ -145,7 +147,9 @@ const GroupsAdmin = () => {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (parseError) {}
+        } catch {
+          // Keep the default error message if parsing fails
+        }
         throw new Error(errorMessage);
       }
       await fetchGroups();
@@ -153,6 +157,7 @@ const GroupsAdmin = () => {
       setIsUpdateGroupModalOpen(false);
       showToast('Group updated successfully', 'success');
     } catch (error) {
+      console.error('Error updating group:', error);
       showToast(error instanceof Error ? error.message : 'Failed to update group', 'error');
     }
   };
@@ -177,6 +182,7 @@ const GroupsAdmin = () => {
       setGroupToDelete(null);
       showToast('Group deleted successfully', 'success');
     } catch (error) {
+      console.error('Error deleting group:', error);
       showToast('Failed to delete group', 'error');
     }
   };
@@ -206,6 +212,7 @@ const GroupsAdmin = () => {
       setIsGroupSelectMode(false);
       showToast(`Successfully deleted ${selectedGroups.length} group(s)`, 'success');
     } catch (error) {
+      console.error('Error deleting groups:', error);
       showToast('Failed to delete some or all groups', 'error');
     }
   };

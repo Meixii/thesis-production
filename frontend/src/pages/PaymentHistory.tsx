@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getApiUrl } from '../utils/api';
-import Navigation from '../components/ui/Navigation';
+import Navigation from '../components/layouts/Navigation';
 import { useNavigate } from 'react-router-dom';
 
 const getMethodBadgeClass = (method: string) => {

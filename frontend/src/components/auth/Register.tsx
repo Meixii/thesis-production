@@ -98,8 +98,9 @@ const Register = () => {
       if (!response.ok) throw new Error(data.error || 'Registration failed');
       // On success, always redirect to verify email page, passing the email
       navigate('/verify-email', { state: { email: formData.email } });
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

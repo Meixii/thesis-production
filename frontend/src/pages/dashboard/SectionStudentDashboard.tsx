@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getApiUrl } from '../../utils/api';
-import Navigation from '../../components/ui/Navigation';
+import Navigation from '../../components/layouts/Navigation';
 import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';

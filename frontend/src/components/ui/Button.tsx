@@ -2,6 +2,7 @@ import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'link' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   loadingText?: string;
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
+  size = 'md',
   isLoading = false,
   loadingText,
   children,
@@ -26,9 +28,11 @@ const Button: React.FC<ButtonProps> = ({
     link: 'text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline bg-transparent'
   };
 
-  const sizeStyles = variant === 'link' 
-    ? 'px-0 py-0' 
-    : 'px-4 py-2 rounded-md';
+  const sizeStyles = {
+    sm: variant === 'link' ? 'px-0 py-0 text-sm' : 'px-2 py-1 text-sm rounded-md',
+    md: variant === 'link' ? 'px-0 py-0' : 'px-4 py-2 rounded-md',
+    lg: variant === 'link' ? 'px-0 py-0 text-lg' : 'px-6 py-3 text-lg rounded-md'
+  };
 
   const disabledStyles = disabled || isLoading
     ? 'opacity-50 cursor-not-allowed'
@@ -36,7 +40,7 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles} ${disabledStyles} ${className}`}
+      className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${disabledStyles} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >

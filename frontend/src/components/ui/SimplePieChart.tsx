@@ -106,12 +106,12 @@ const SimplePieChart: React.FC<SimplePieChartProps> = ({
 
 // Helper functions
 const formatCurrency = (amount: number) => {
+  // Handle NaN, null, undefined values
+  const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
-    currency: 'PHP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+    currency: 'PHP'
+  }).format(safeAmount);
 };
 
 const formatPercentage = (value: number, total: number) => {

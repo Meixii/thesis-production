@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -154,10 +154,12 @@ const LoanDisbursement: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
-      currency: 'PHP',
-    }).format(amount);
+      currency: 'PHP'
+    }).format(safeAmount);
   };
 
   const formatDate = (dateString: string) => {

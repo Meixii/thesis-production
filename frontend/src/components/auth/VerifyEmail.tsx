@@ -22,8 +22,9 @@ const VerifyEmail = () => {
           setMessage(data.error || 'Verification failed. The link may be invalid or expired.');
         }
       } catch (err) {
+        console.error('Error verifying email:', err);
         setStatus('error');
-        setMessage('An error occurred while verifying your email.');
+        setMessage('Failed to verify email. Please try again or contact support.');
       }
     };
     verify();

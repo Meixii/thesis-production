@@ -10,7 +10,21 @@ import { useToast } from '../../context/ToastContext';
 
 type UserRole = 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
 
-const getRoleFromResponse = (data: any): UserRole => {
+interface AuthResponse {
+  user?: {
+    role?: string;
+  };
+  data?: {
+    user?: {
+      role?: string;
+    };
+    role?: string;
+  };
+  role?: string;
+  token?: string;
+}
+
+const getRoleFromResponse = (data: AuthResponse): UserRole => {
   // Extract role from various possible response structures
   let role = '';
   if (data.user?.role) {

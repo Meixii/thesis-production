@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import Navigation from '../components/ui/Navigation';
+import Navigation from '../components/layouts/Navigation';
 import { getApiUrl } from '../utils/api';
 
 interface Loan {
@@ -61,10 +61,12 @@ const MyLoans = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   const getStatusBadgeColor = (status: string) => {

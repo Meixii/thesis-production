@@ -4,7 +4,7 @@ import { getApiUrl } from '../../utils/api';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
 import StatCard from '../ui/StatCard';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import SimpleBarChart from '../ui/SimpleBarChart';
 import SimplePieChart from '../ui/SimplePieChart';
 import DashboardCard from '../dashboard/DashboardCard';
@@ -143,10 +143,12 @@ const TreasurerDashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   // Transform payment distribution data for pie chart

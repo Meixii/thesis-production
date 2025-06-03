@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../../utils/api';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import Card from '../ui/Card';
 import { useToast } from '../../context/ToastContext';
-import Modal from '../ui/Modal';
 
 interface Expense {
   id: number;
@@ -31,6 +30,17 @@ interface ExpenseSummary {
     count: number;
     total_amount: number;
   }[];
+}
+
+interface MemberStatus {
+  user_id: number;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  method?: string;
+  reference_id?: string;
+  receipt_url?: string;
 }
 
 const EXPENSE_CATEGORIES = [
@@ -84,7 +94,7 @@ const Expenses: React.FC = () => {
 
   // Add state for viewing member status
   const [viewingExpense, setViewingExpense] = useState<Expense | null>(null);
-  const [memberStatus, setMemberStatus] = useState<any[] | null>(null);
+  const [memberStatus, setMemberStatus] = useState<MemberStatus[] | null>(null);
   const [memberStatusLoading, setMemberStatusLoading] = useState(false);
   const [memberStatusError, setMemberStatusError] = useState<string | null>(null);
 
@@ -833,7 +843,7 @@ const Expenses: React.FC = () => {
                             <td className="px-4 py-2 whitespace-nowrap">
                               {member.receipt_url ? (
                                 <button
-                                  onClick={() => setViewingReceiptUrl(member.receipt_url)}
+                                  onClick={() => setViewingReceiptUrl(member.receipt_url || null)}
                                   className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 underline"
                                 >
                                   View

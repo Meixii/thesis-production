@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { Tab } from '@headlessui/react';
@@ -121,148 +121,65 @@ const LoanManagement: React.FC = () => {
   const [approvedLoading, setApprovedLoading] = useState(false);
   const [approvedError, setApprovedError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchUserInfo().then(groupId => {
-      if (groupId) {
-        fetchLoans(groupId);
-      }
-    });
-  }, [navigate]);
-  
-  const fetchUserInfo = async () => {
+  const fetchLoans = useCallback(async () => {
     try {
+      setIsLoading(true);
       const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return null;
-      }
-
-      const response = await fetch(getApiUrl('/api/auth/profile'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user profile');
-      }
-
-      const data = await response.json();
-      const fetchedGroupId = data.groupId || data.group_id || data.data?.groupId || data.data?.group_id;
-
-      setGroupId(fetchedGroupId);
-
-      return fetchedGroupId;
-    } catch (error) {
-      console.error('Error fetching user info:', error);
-      setError('Failed to fetch user information');
-      return null;
-    }
-  };
-
-  const fetchLoans = async (fetchedGroupId: number) => {
-    setIsLoading(isRefreshing ? false : true);
-    setIsRefreshing(true);
-    setError(null);
-
-    try {
-      // Fetch intra-group loan requests
-      const intraResponse = await fetch(
-        getApiUrl(`/api/groups/${fetchedGroupId}/loans/pending/intra`),
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
-      );
-
-      if (!intraResponse.ok) {
-        const errorData = await intraResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch intra-group loan requests');
-      }
-
-      const intraData = await intraResponse.json();
-      setIntraLoans(intraData.loans || []);
-
-      // Fetch inter-group loan requests
-      const interResponse = await fetch(
-        getApiUrl(`/api/groups/${fetchedGroupId}/loans/pending/inter/incoming`),
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
-      );
-
-      if (!interResponse.ok) {
-        const errorData = await interResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch inter-group loan requests');
-      }
-
-      const interData = await interResponse.json();
-      setInterLoans(interData.loans || []);
-    } catch (error) {
-      console.error('Error fetching loans:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch loan requests');
+      if (!token) throw new Error('Not authenticated');
       
-      // If API fails, use mock data in development mode
-      if (import.meta.env.DEV) {
-        console.log('Using mock data due to API error');
-        setIntraLoans([
-          {
-            id: 1,
-            loan_type: 'intra_group',
-            requesting_user_id: 101,
-            requesting_user_name: 'John Doe',
-            requesting_group_id: 1,
-            providing_group_id: 1,
-            amount_requested: 100.00,
-            fee_applied: 10.00,
-            status: 'requested',
-            request_date: new Date().toISOString(),
-            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 2,
-            loan_type: 'intra_group',
-            requesting_user_id: 102,
-            requesting_user_name: 'Jane Smith',
-            requesting_group_id: 1,
-            providing_group_id: 1,
-            amount_requested: 75.00,
-            fee_applied: 10.00,
-            status: 'requested',
-            request_date: new Date().toISOString(),
-            due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-          }
-        ]);
-        
-        setInterLoans([
-          {
-            id: 3,
-            loan_type: 'inter_group',
-            requesting_user_id: 201,
-            requesting_user_name: 'Group B Finance Coordinator',
-            requesting_group_id: 2,
-            providing_group_id: 1,
-            amount_requested: 300.00,
-            fee_applied: 0.00,
-            status: 'requested',
-            request_date: new Date().toISOString(),
-            due_date: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-          }
-        ]);
+      // Get user info and group info
+      const userRes = await fetch(getApiUrl('/api/auth/profile'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!userRes.ok) throw new Error('Failed to fetch user info');
+      const userData = await userRes.json();
+      setGroupId(userData.groupId || userData.group_id || userData.data?.groupId || userData.data?.group_id);
+
+      if (!userData.groupId) {
+        setError('You are not a member of any group');
+        setIsLoading(false);
+        return;
       }
+      
+      // Fetch loans for the group
+      const loansRes = await fetch(getApiUrl(`/api/groups/${userData.groupId}/loans`), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!loansRes.ok) throw new Error('Failed to fetch loans');
+      const loansData = await loansRes.json();
+      setIntraLoans(loansData.loans || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
-  };
+  }, []);
+
+  const fetchUserInfo = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not authenticated');
+      
+      const userRes = await fetch(getApiUrl('/api/auth/profile'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!userRes.ok) throw new Error('Failed to fetch user info');
+      const userData = await userRes.json();
+      setGroupId(userData.groupId || userData.group_id || userData.data?.groupId || userData.data?.group_id);
+    } catch (err) {
+      console.error('Error fetching user info:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLoans();
+    fetchUserInfo();
+  }, [fetchLoans, fetchUserInfo]);
 
   const handleRefresh = () => {
     if (groupId) {
       setIsRefreshing(true);
-      fetchLoans(groupId);
+      fetchLoans();
     }
   };
 
@@ -328,7 +245,7 @@ const LoanManagement: React.FC = () => {
       
       // Refresh the data
       if (groupId) {
-        fetchLoans(groupId);
+        fetchLoans();
       }
     } catch (error) {
       console.error(`Error ${action}ing loan:`, error);
@@ -346,10 +263,12 @@ const LoanManagement: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
-      currency: 'PHP',
-    }).format(amount);
+      currency: 'PHP'
+    }).format(safeAmount);
   };
 
   const formatDate = (dateString: string) => {

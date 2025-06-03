@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import Navigation from '../components/ui/Navigation';
+import Navigation from '../components/layouts/Navigation';
 import { getApiUrl } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -193,8 +193,13 @@ const LoanRequest = () => {
 
   // Helper function to safely format numbers
   const formatCurrency = (value: any): string => {
-    const num = parseFloat(value);
-    return isNaN(num) ? '0.00' : num.toFixed(2);
+    // Handle NaN, null, undefined values
+    const amount = parseFloat(value);
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP'
+    }).format(safeAmount);
   };
 
   return (

@@ -4,7 +4,7 @@ import { getApiUrl } from '../../utils/api';
 import DashboardCard from '../../components/dashboard/DashboardCard';
 import StatCard from '../../components/dashboard/StatCard';
 import Button from '../../components/ui/Button';
-import Navigation from '../../components/ui/Navigation';
+import Navigation from '../../components/layouts/Navigation';
 import SimpleBarChart from '../../components/ui/SimpleBarChart';
 import SimplePieChart from '../../components/ui/SimplePieChart';
 import { useToast } from '../../context/ToastContext';
@@ -77,12 +77,11 @@ const FCDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dashboardData, setDashboardData] = useState<FCDashboardData | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payableExpenses, setPayableExpenses] = useState<PayableExpense[]>([]);
 
   // Add state for reset confirmation modal and loading state for reset action
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  // const [isResetting, setIsResetting] = useState(false);
 
   // Create mock data function to reduce duplication
   const createMockData = (groupId: number, groupName: string): FCDashboardData => {
@@ -228,7 +227,7 @@ const FCDashboard = () => {
       setShowResetConfirmModal(false);
       return;
     }
-    setIsResetting(true);
+    // setIsResetting(true);
     setShowResetConfirmModal(false); // Close modal immediately
 
     try {
@@ -251,7 +250,7 @@ const FCDashboard = () => {
       console.error('Reset contributions error:', err);
       showToast(err instanceof Error ? err.message : 'An unknown error occurred while resetting contributions.', 'error');
     } finally {
-      setIsResetting(false);
+      // setIsResetting(false);
     }
   };
 
@@ -262,10 +261,12 @@ const FCDashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN, null, undefined values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : amount;
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   // const formatPercentage = (current: number, goal: number) => {
@@ -498,7 +499,7 @@ const FCDashboard = () => {
         </div>
 
         {/* Recent Group Expenses Table */}
-        {expenses.length > 0 && (
+        {/* {expenses.length > 0 && (
           <DashboardCard
             title="Recent Group Expenses"
             className="bg-white dark:bg-neutral-800 shadow-sm border border-neutral-200 dark:border-neutral-700 mb-6"
@@ -567,7 +568,7 @@ const FCDashboard = () => {
               </table>
             </div>
           </DashboardCard>
-        )}
+        )} */}
 
         {/* Pending Expense Shares */}
         {payableExpenses.length > 0 ? (

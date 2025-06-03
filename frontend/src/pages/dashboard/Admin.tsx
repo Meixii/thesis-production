@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navigation from '../../components/ui/Navigation';
+import Navigation from '../../components/layouts/Navigation';
 import WeeksAdmin from '../../components/admin/WeeksAdmin';
 import UsersAdmin from '../../components/admin/UsersAdmin';
 import GroupsAdmin from '../../components/admin/GroupsAdmin';

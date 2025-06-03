@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getApiUrl } from '../../utils/api';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
@@ -52,13 +52,12 @@ const UsersAdmin = () => {
   });
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortColumn, setSortColumn] = useState<string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
 
-  useEffect(() => {
-    fetchUsers();
-    fetchGroups();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -75,13 +74,14 @@ const UsersAdmin = () => {
       const data = await response.json();
       setUsers(data.users);
     } catch (error) {
+      console.error('Error fetching users:', error);
       showToast('Failed to load users', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(getApiUrl('/api/admin/groups'), {
@@ -96,9 +96,15 @@ const UsersAdmin = () => {
       const data = await response.json();
       setGroups(data.groups || []);
     } catch (error) {
+      console.error('Error fetching groups:', error);
       showToast('Failed to load groups', 'error');
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchGroups();
+  }, [fetchUsers, fetchGroups]);
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
@@ -120,6 +126,7 @@ const UsersAdmin = () => {
       setUserToDelete(null);
       showToast('User deleted successfully', 'success');
     } catch (error) {
+      console.error('Error deleting user:', error);
       showToast('Failed to delete user', 'error');
     }
   };
@@ -143,6 +150,7 @@ const UsersAdmin = () => {
       setIsUserSelectMode(false);
       showToast(`${selectedUsers.length} user(s) deleted successfully`, 'success');
     } catch (error) {
+      console.error('Error deleting users:', error);
       showToast('Failed to delete users', 'error');
     }
   };
@@ -173,6 +181,7 @@ const UsersAdmin = () => {
       setIsUpdateUserModalOpen(false);
       showToast('User updated successfully', 'success');
     } catch (error) {
+      console.error('Error updating user:', error);
       showToast('Failed to update user', 'error');
     }
   };
@@ -207,9 +216,66 @@ const UsersAdmin = () => {
       });
       showToast('User added successfully', 'success');
     } catch (error) {
+      console.error('Error adding user:', error);
       showToast('Failed to add user', 'error');
     }
   };
+
+  // Sorting helper
+  const getSortedUsers = (usersToSort: User[]) => {
+    const sorted = [...usersToSort].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+      switch (sortColumn) {
+        case 'name':
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+          break;
+        case 'email':
+          aValue = a.email?.toLowerCase() || '';
+          bValue = b.email?.toLowerCase() || '';
+          break;
+        case 'role':
+          aValue = a.role || '';
+          bValue = b.role || '';
+          break;
+        case 'group':
+          aValue = a.group?.name?.toLowerCase() || '';
+          bValue = b.group?.name?.toLowerCase() || '';
+          break;
+        case 'status':
+          aValue = a.is_active ? 1 : 0;
+          bValue = b.is_active ? 1 : 0;
+          break;
+        default:
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+      }
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
+
+  // Filter and sort users
+  const filteredUsers = users.filter(user => {
+    const q = userSearchQuery.toLowerCase();
+    // Search filter
+    const matchesSearch = user.name.toLowerCase().includes(q) || user.email.toLowerCase().includes(q);
+    // Role filter
+    let matchesRole = true;
+    if (roleFilter === 'student') matchesRole = user.role === 'student';
+    else if (roleFilter === 'treasurer') matchesRole = user.role === 'treasurer';
+    else if (roleFilter === 'finance_coordinator') matchesRole = user.role === 'finance_coordinator';
+    else if (roleFilter === 'admin') matchesRole = user.role === 'admin';
+    else if (roleFilter === 'officers') matchesRole = ['treasurer', 'finance_coordinator', 'admin'].includes(user.role);
+    // Group filter
+    let matchesGroup = true;
+    if (groupFilter !== 'all') matchesGroup = !!user.group && String(user.group.id) === groupFilter;
+    return matchesSearch && matchesRole && matchesGroup;
+  });
+  const sortedUsers = getSortedUsers(filteredUsers);
 
   if (loading) {
     return (
@@ -227,6 +293,7 @@ const UsersAdmin = () => {
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             Manage users, roles, and group assignments
           </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Showing {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex space-x-2">
           {isUserSelectMode ? (
@@ -245,13 +312,37 @@ const UsersAdmin = () => {
         </div>
       </div>
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <input
-          type="text"
-          placeholder="Search users by name or email..."
-          value={userSearchQuery}
-          onChange={e => setUserSearchQuery(e.target.value)}
-          className="w-full sm:w-64 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
-        />
+        <div className="flex flex-col sm:flex-row gap-2 w-full">
+          <input
+            type="text"
+            placeholder="Search users by name or email..."
+            value={userSearchQuery}
+            onChange={e => setUserSearchQuery(e.target.value)}
+            className="w-full sm:w-64 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
+          />
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="w-full sm:w-48 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
+          >
+            <option value="all">All Roles</option>
+            <option value="student">Student</option>
+            <option value="treasurer">Treasurer</option>
+            <option value="finance_coordinator">Finance Coordinator</option>
+            <option value="admin">Admin</option>
+            <option value="officers">Officers (Treasurer/FC/Admin)</option>
+          </select>
+          <select
+            value={groupFilter}
+            onChange={e => setGroupFilter(e.target.value)}
+            className="w-full sm:w-48 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-neutral-700 text-gray-900 dark:text-white focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400"
+          >
+            <option value="all">All Groups</option>
+            {groups.map(group => (
+              <option key={group.id} value={group.id}>{group.group_name || group.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-md overflow-x-auto border border-gray-200 dark:border-gray-700">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -276,35 +367,108 @@ const UsersAdmin = () => {
                   </div>
                 </th>
               )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Group</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                onClick={() => {
+                  if (sortColumn === 'name') {
+                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortColumn('name');
+                    setSortDirection('asc');
+                  }
+                }}
+              >
+                <span className="flex items-center gap-1">
+                  Name
+                  {sortColumn === 'name' && (
+                    <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                onClick={() => {
+                  if (sortColumn === 'email') {
+                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortColumn('email');
+                    setSortDirection('asc');
+                  }
+                }}
+              >
+                <span className="flex items-center gap-1">
+                  Email
+                  {sortColumn === 'email' && (
+                    <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                onClick={() => {
+                  if (sortColumn === 'role') {
+                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortColumn('role');
+                    setSortDirection('asc');
+                  }
+                }}
+              >
+                <span className="flex items-center gap-1">
+                  Role
+                  {sortColumn === 'role' && (
+                    <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                onClick={() => {
+                  if (sortColumn === 'group') {
+                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortColumn('group');
+                    setSortDirection('asc');
+                  }
+                }}
+              >
+                <span className="flex items-center gap-1">
+                  Group
+                  {sortColumn === 'group' && (
+                    <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                  )}
+                </span>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                onClick={() => {
+                  if (sortColumn === 'status') {
+                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortColumn('status');
+                    setSortDirection('asc');
+                  }
+                }}
+              >
+                <span className="flex items-center gap-1">
+                  Status
+                  {sortColumn === 'status' && (
+                    <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                  )}
+                </span>
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {users.filter(user => {
-              const q = userSearchQuery.toLowerCase();
-              return (
-                user.name.toLowerCase().includes(q) ||
-                user.email.toLowerCase().includes(q)
-              );
-            }).length === 0 ? (
+            {sortedUsers.length === 0 ? (
               <tr>
                 <td colSpan={isUserSelectMode ? 7 : 6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                   No users found.
                 </td>
               </tr>
             ) : (
-              users.filter(user => {
-                const q = userSearchQuery.toLowerCase();
-                return (
-                  user.name.toLowerCase().includes(q) ||
-                  user.email.toLowerCase().includes(q)
-                );
-              }).map(user => (
+              sortedUsers.map(user => (
                 <tr key={user.id} className={selectedUsers.includes(user.id) ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-neutral-700/50'}>
                   {isUserSelectMode && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

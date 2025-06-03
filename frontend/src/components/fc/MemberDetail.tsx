@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getApiUrl } from '../../utils/api';
-import Navigation from '../ui/Navigation';
+import Navigation from '../layouts/Navigation';
 import { useToast } from '../../context/ToastContext';
 
 interface Contribution {
