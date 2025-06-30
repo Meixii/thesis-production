@@ -1147,7 +1147,6 @@ const getGroupDetails = async (req, res) => {
       `SELECT 
          g.id,
          g.group_name,
-         g.description,
          (SELECT COUNT(*) FROM users WHERE group_id = g.id AND role IN ('student', 'finance_coordinator')) as total_students,
          (SELECT COUNT(*) FROM dues WHERE group_id = g.id) as total_dues,
          COALESCE(
