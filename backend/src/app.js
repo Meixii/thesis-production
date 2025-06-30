@@ -55,7 +55,8 @@ app.use(session({
     secure: true, // Required for HTTPS
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'none', // Required for cross-origin requests
-    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined
+    // Remove domain restriction for cross-origin compatibility
+    domain: undefined
   }
 }));
 
@@ -63,8 +64,11 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Pre-flight OPTIONS request handler
-app.options('*', cors());
+// Pre-flight OPTIONS request handler with error handling
+app.options('*', (req, res, next) => {
+  console.log(`OPTIONS request from origin: ${req.headers.origin || 'no origin'}`);
+  cors()(req, res, next);
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
