@@ -5,13 +5,14 @@ const notificationService = require('../services/notificationService');
  */
 const getNotifications = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { limit = 20, offset = 0, unreadOnly = false } = req.query;
+    const userId = req.user.userId;
+    const { limit = 20, offset = 0, unreadOnly = false, archived = false } = req.query;
     
     const notifications = await notificationService.getUserNotifications(userId, {
       limit: parseInt(limit),
       offset: parseInt(offset),
-      unreadOnly: unreadOnly === 'true'
+      unreadOnly: unreadOnly === 'true',
+      archived: archived === 'true',
     });
     
     res.json({ notifications });
@@ -26,7 +27,7 @@ const getNotifications = async (req, res) => {
  */
 const getUnreadCount = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const count = await notificationService.getUnreadCount(userId);
     
     res.json({ count });
@@ -41,7 +42,7 @@ const getUnreadCount = async (req, res) => {
  */
 const markAsRead = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { notificationIds } = req.body;
     
     if (!notificationIds || !Array.isArray(notificationIds)) {
@@ -68,7 +69,7 @@ const markAsRead = async (req, res) => {
  */
 const markAllAsRead = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     // Get all unread notification IDs
     const unreadNotifications = await notificationService.getUserNotifications(userId, {
@@ -91,9 +92,47 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+/**
+ * Archive a notification
+ */
+const archiveNotification = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { notificationId } = req.params;
+    const updated = await notificationService.archiveNotification(userId, notificationId);
+    if (!updated) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    res.json({ success: true, notification: updated });
+  } catch (error) {
+    console.error('Archive notification error:', error);
+    res.status(500).json({ error: 'Failed to archive notification' });
+  }
+};
+
+/**
+ * Unarchive a notification
+ */
+const unarchiveNotification = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { notificationId } = req.params;
+    const updated = await notificationService.unarchiveNotification(userId, notificationId);
+    if (!updated) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    res.json({ success: true, notification: updated });
+  } catch (error) {
+    console.error('Unarchive notification error:', error);
+    res.status(500).json({ error: 'Failed to unarchive notification' });
+  }
+};
+
 module.exports = {
   getNotifications,
   getUnreadCount,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  archiveNotification,
+  unarchiveNotification
 }; 

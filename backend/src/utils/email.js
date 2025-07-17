@@ -300,7 +300,7 @@ const getBaseEmailTemplate = (content) => {
           <div class="divider"></div>
           <div class="footer">
             <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
-            <p>Secure financial solutions for your future.</p>
+            <p>How about we drink some coffee?</p>
           </div>
         </div>
       </div>
@@ -369,15 +369,15 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Amount Paid</span>
+            <span class="info-label">Amount Paid </span>
             <span class="info-value">₱${data.amount.toFixed(2)}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Due Title</span>
+            <span class="info-label">Due Title </span>
             <span class="info-value">${data.dueTitle}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Payment Method</span>
+            <span class="info-label">Payment Method </span>
             <span class="info-value">${data.paymentMethod.toUpperCase()}</span>
           </div>
         </div>
@@ -406,11 +406,11 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Amount</span>
+            <span class="info-label">Amount </span>
             <span class="info-value">₱${data.amount.toFixed(2)}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Due Title</span>
+            <span class="info-label">Due Title </span>
             <span class="info-value">${data.dueTitle}</span>
           </div>
         </div>
@@ -446,11 +446,11 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Due Date</span>
+            <span class="info-label">Due Date </span>
             <span class="info-value">${new Date(data.dueDate).toLocaleDateString()}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Days Remaining</span>
+            <span class="info-label">Days Remaining </span>
             <span class="info-value">${data.daysUntilDue} days</span>
           </div>
         </div>
@@ -640,7 +640,7 @@ const sendVerificationEmail = async (email, token) => {
             
             <div class="footer">
               <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
-              <p>Secure financial solutions for your future.</p>
+              <p>How about we drink some coffee?</p>
             </div>
           </div>
         </body>
@@ -834,7 +834,7 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
             
             <div class="footer">
               <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
-              <p>Secure financial solutions for your future.</p>
+              <p>How about we drink some coffee?</p>
             </div>
           </div>
         </body>

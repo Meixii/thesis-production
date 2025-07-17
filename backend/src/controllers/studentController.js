@@ -324,6 +324,7 @@ const getMyDues = async (req, res) => {
         d.description,
         d.total_amount_due,
         d.due_date,
+        d.payment_method_restriction,
         ud.status,
         ud.amount_paid,
         (d.total_amount_due - ud.amount_paid) as remaining,
@@ -342,6 +343,7 @@ const getMyDues = async (req, res) => {
         description: row.description,
         totalAmountDue: Number(row.total_amount_due),
         dueDate: row.due_date,
+        paymentMethodRestriction: row.payment_method_restriction,
         status: row.status,
         amountPaid: Number(row.amount_paid),
         remaining: Number(row.remaining),
@@ -361,7 +363,7 @@ const getMyDueDetails = async (req, res) => {
   try {
     // Get user_due record
     const userDueResult = await db.query(`
-      SELECT ud.id as user_due_id, ud.status, ud.amount_paid, ud.last_payment_date, d.title, d.description, d.total_amount_due, d.due_date, d.created_at
+      SELECT ud.id as user_due_id, ud.status, ud.amount_paid, ud.last_payment_date, d.title, d.description, d.total_amount_due, d.due_date, d.payment_method_restriction, d.created_at
       FROM user_dues ud
       JOIN dues d ON ud.due_id = d.id
       WHERE ud.user_id = $1 AND d.id = $2
@@ -388,6 +390,7 @@ const getMyDueDetails = async (req, res) => {
         description: due.description,
         totalAmountDue: Number(due.total_amount_due),
         dueDate: due.due_date,
+        paymentMethodRestriction: due.payment_method_restriction,
         status: due.status,
         amountPaid: Number(due.amount_paid),
         remaining: Number(due.total_amount_due) - Number(due.amount_paid),
@@ -421,15 +424,32 @@ const payDue = async (req, res) => {
   if (!amount || !method) {
     return res.status(400).json({ success: false, error: 'Amount and method are required' });
   }
+
+  // Validate payment method
+  if (!['gcash', 'maya', 'cash'].includes(method)) {
+    return res.status(400).json({ success: false, error: 'Invalid payment method' });
+  }
   try {
-    // Get user_due record
+    // Get user_due record and due details
     const userDueResult = await db.query(`
-      SELECT id, amount_paid, status FROM user_dues WHERE user_id = $1 AND due_id = $2 LIMIT 1
+      SELECT ud.id, ud.amount_paid, ud.status, d.payment_method_restriction 
+      FROM user_dues ud
+      JOIN dues d ON ud.due_id = d.id
+      WHERE ud.user_id = $1 AND ud.due_id = $2 LIMIT 1
     `, [userId, dueId]);
     if (userDueResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Due not found for this user' });
     }
     const userDue = userDueResult.rows[0];
+
+    // Check payment method restriction
+    const restriction = userDue.payment_method_restriction;
+    if (restriction === 'online_only' && method === 'cash') {
+      return res.status(400).json({ success: false, error: 'This due only accepts online payments (GCash or Maya)' });
+    }
+    if (restriction === 'cash_only' && (method === 'gcash' || method === 'maya')) {
+      return res.status(400).json({ success: false, error: 'This due only accepts cash payments' });
+    }
     // Get user's group and last name for Cloudinary metadata
     const userResult = await db.query('SELECT group_id, last_name FROM users WHERE id = $1', [userId]);
     if (!userResult.rows.length) {

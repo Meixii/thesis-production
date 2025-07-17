@@ -5,7 +5,9 @@ const {
   getNotifications,
   getUnreadCount,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  archiveNotification,
+  unarchiveNotification
 } = require('../controllers/notificationController');
 
 // All routes require authentication
@@ -22,5 +24,11 @@ router.post('/mark-read', markAsRead);
 
 // Mark all notifications as read
 router.post('/mark-all-read', markAllAsRead);
+
+// Archive a notification
+router.post('/:notificationId/archive', archiveNotification);
+
+// Unarchive a notification
+router.post('/:notificationId/unarchive', unarchiveNotification);
 
 module.exports = router; 

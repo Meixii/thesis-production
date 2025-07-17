@@ -422,7 +422,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
               <span className="text-xl font-bold text-gray-900 dark:text-white">
                 CS<span className="text-blue-500 drop-shadow-[0_0_6px_rgba(59,130,246,0.7)]">Bank</span>
               </span>
-              <TypewriterEffect />
+              <span className="hidden sm:block"><TypewriterEffect /></span>
             </div>
             
             {/* Desktop Navigation */}
@@ -468,6 +468,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             
           {/* Mobile menu button */}
           <div className="flex items-center lg:hidden">
+            <NotificationBell />
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-700 focus:outline-none transition-colors"
@@ -491,6 +492,11 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
       {/* Mobile menu */}
       <div className={`${isOpen ? 'block' : 'hidden'} lg:hidden transition-all duration-200 ease-in-out`}>
         <div className="pt-2 pb-3 space-y-1">
+          {/* Notification Bell for mobile */}
+          <div className="px-4 py-2 flex items-center">
+            <NotificationBell />
+            <span className="ml-2 text-sm text-gray-700 dark:text-gray-200 font-medium">Notifications</span>
+          </div>
           {getNavItems().map((item) => (
             isCategory(item) ? (
               <MobileNavDropdown

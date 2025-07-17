@@ -211,6 +211,7 @@ const getDues = async (req, res) => {
         d.description,
         d.total_amount_due,
         d.due_date,
+        d.payment_method_restriction,
         d.created_at,
         (
           SELECT json_build_object(
@@ -247,7 +248,7 @@ const getDues = async (req, res) => {
 };
 
 /**
- * Create a new due and assign to all active students
+ * Create a new due and assign to selected or all active students
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -257,12 +258,29 @@ const createDue = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
     }
 
-    const { title, description, total_amount_due, due_date } = req.body;
+    const { title, description, total_amount_due, due_date, payment_method_restriction = 'all', assignment_type = 'all', selected_student_ids = [] } = req.body;
     const groupId = req.user.groupId;
 
     // Validate required fields
     if (!title || !total_amount_due || !due_date) {
       return res.status(400).json({ error: 'Title, amount, and due date are required' });
+    }
+
+    // Validate assignment type
+    if (assignment_type !== 'all' && assignment_type !== 'selected') {
+      return res.status(400).json({ error: 'Invalid assignment type. Must be "all" or "selected"' });
+    }
+
+    // Validate selected students if assignment type is selected
+    if (assignment_type === 'selected') {
+      if (!Array.isArray(selected_student_ids) || selected_student_ids.length === 0) {
+        return res.status(400).json({ error: 'At least one student must be selected for targeted assignment' });
+      }
+    }
+
+    // Validate payment method restriction
+    if (!['all', 'online_only', 'cash_only'].includes(payment_method_restriction)) {
+      return res.status(400).json({ error: 'Invalid payment method restriction. Must be "all", "online_only", or "cash_only"' });
     }
 
     // Start transaction
@@ -274,22 +292,43 @@ const createDue = async (req, res) => {
       const dueResult = await client.query(
         `INSERT INTO dues (
           created_by_user_id, group_id, title, description, 
-          total_amount_due, due_date
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+          total_amount_due, due_date, payment_method_restriction
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`,
-        [req.user.userId, groupId, title, description, total_amount_due, due_date]
+        [req.user.userId, groupId, title, description, total_amount_due, due_date, payment_method_restriction]
       );
 
       const dueId = dueResult.rows[0].id;
 
-      // Get all active users in the group
-      const usersResult = await client.query(
-        'SELECT id FROM users WHERE group_id = $1 AND is_active = true AND role IN (\'student\', \'finance_coordinator\')',
-        [groupId]
-      );
+      let usersToAssign = [];
 
-      // Create user_dues records for each user
-      for (const user of usersResult.rows) {
+      if (assignment_type === 'all') {
+        // Get all active users in the group
+        const usersResult = await client.query(
+          'SELECT id FROM users WHERE group_id = $1 AND is_active = true AND role IN (\'student\', \'finance_coordinator\')',
+          [groupId]
+        );
+        usersToAssign = usersResult.rows;
+      } else {
+        // Validate that selected students belong to the treasurer's group
+        const selectedUsersResult = await client.query(
+          `SELECT id FROM users 
+           WHERE id = ANY($1) 
+           AND group_id = $2 
+           AND is_active = true 
+           AND role IN ('student', 'finance_coordinator')`,
+          [selected_student_ids, groupId]
+        );
+
+        if (selectedUsersResult.rows.length !== selected_student_ids.length) {
+          throw new Error('Some selected students do not belong to your group or are not valid');
+        }
+
+        usersToAssign = selectedUsersResult.rows;
+      }
+
+      // Create user_dues records for selected users
+      for (const user of usersToAssign) {
         await client.query(
           `INSERT INTO user_dues (due_id, user_id, status)
            VALUES ($1, $2, 'pending')`,
@@ -297,44 +336,48 @@ const createDue = async (req, res) => {
         );
       }
 
-      // Create a trigger function to automatically assign this due to new users
-      await client.query(`
-        CREATE OR REPLACE FUNCTION assign_dues_to_new_user()
-        RETURNS TRIGGER AS $$
-        BEGIN
-          IF NEW.role IN ('student', 'finance_coordinator') AND NEW.group_id IS NOT NULL THEN
-            INSERT INTO user_dues (due_id, user_id, status)
-            SELECT d.id, NEW.id, 'pending'
-            FROM dues d
-            WHERE d.group_id = NEW.group_id
-              AND d.due_date >= CURRENT_DATE;
-          END IF;
-          RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-      `);
+      // Only create the trigger for automatic assignment if this is an "all" assignment
+      if (assignment_type === 'all') {
+        // Create a trigger function to automatically assign this due to new users
+        await client.query(`
+          CREATE OR REPLACE FUNCTION assign_dues_to_new_user()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            IF NEW.role IN ('student', 'finance_coordinator') AND NEW.group_id IS NOT NULL THEN
+              INSERT INTO user_dues (due_id, user_id, status)
+              SELECT d.id, NEW.id, 'pending'
+              FROM dues d
+              WHERE d.group_id = NEW.group_id
+                AND d.due_date >= CURRENT_DATE
+                AND d.created_by_user_id = $1; -- Only assign dues created by this treasurer
+            END IF;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+        `);
 
-      // Create the trigger if it doesn't exist
-      await client.query(`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 
-            FROM pg_trigger 
-            WHERE tgname = 'assign_dues_on_user_creation'
-          ) THEN
-            CREATE TRIGGER assign_dues_on_user_creation
-            AFTER INSERT ON users
-            FOR EACH ROW
-            EXECUTE FUNCTION assign_dues_to_new_user();
-          END IF;
-        END;
-        $$;
-      `);
+        // Create the trigger if it doesn't exist
+        await client.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 
+              FROM pg_trigger 
+              WHERE tgname = 'assign_dues_on_user_creation'
+            ) THEN
+              CREATE TRIGGER assign_dues_on_user_creation
+              AFTER INSERT ON users
+              FOR EACH ROW
+              EXECUTE FUNCTION assign_dues_to_new_user();
+            END IF;
+          END;
+          $$;
+        `);
+      }
 
       await client.query('COMMIT');
 
-      // Send notification to all group members
+      // Send notification to assigned users only
       try {
         const creatorName = `${req.user.firstName} ${req.user.lastName}`;
         await notificationService.notifyNewDue({
@@ -343,16 +386,22 @@ const createDue = async (req, res) => {
           amount: parseFloat(total_amount_due),
           dueDate: due_date,
           groupId,
-          creatorName
+          creatorName,
+          targetUserIds: usersToAssign.map(u => u.id) // Only notify assigned users
         });
       } catch (notificationError) {
         console.error('Failed to send notifications:', notificationError);
         // Don't fail the request if notifications fail
       }
 
+      const assignmentMessage = assignment_type === 'all' 
+        ? 'Due created successfully and assigned to all active students'
+        : `Due created successfully and assigned to ${usersToAssign.length} selected students`;
+
       res.status(201).json({
-        message: 'Due created successfully and assigned to all active students',
-        due_id: dueId
+        message: assignmentMessage,
+        due_id: dueId,
+        assigned_count: usersToAssign.length
       });
     } catch (error) {
       await client.query('ROLLBACK');
@@ -386,7 +435,7 @@ const getDueStatus = async (req, res) => {
     // Get due details and user statuses
     const result = await db.query(
       `SELECT 
-         d.id, d.title, d.description, d.total_amount_due, d.due_date,
+         d.id, d.title, d.description, d.total_amount_due, d.due_date, d.payment_method_restriction,
          u.id as user_id,
          CONCAT(u.first_name, ' ', u.last_name) as user_name,
          ud.id as user_due_id,
@@ -442,6 +491,7 @@ const getDueStatus = async (req, res) => {
       description: result.rows[0].description,
       total_amount_due: parseFloat(result.rows[0].total_amount_due) || 0,
       due_date: result.rows[0].due_date,
+      payment_method_restriction: result.rows[0].payment_method_restriction,
       user_statuses: userStatuses
     };
 

@@ -9,16 +9,34 @@ const { sendNotificationEmail } = require('../utils/email');
  * @param {string} notificationData.type - Notification type
  * @param {string} [notificationData.relatedEntityType] - Related entity type (e.g., 'due', 'payment')
  * @param {number} [notificationData.relatedEntityId] - Related entity ID
+ * @param {string} [notificationData.targetUrl] - Target URL for the notification
  */
 const createNotification = async (notificationData) => {
-  const { userId, message, type, relatedEntityType, relatedEntityId } = notificationData;
+  const { userId, message, type, relatedEntityType, relatedEntityId, targetUrl } = notificationData;
+  let finalTargetUrl = targetUrl;
+  // Auto-generate target_url for common types if not provided
+  if (!finalTargetUrl && relatedEntityType && relatedEntityId) {
+    switch (relatedEntityType) {
+      case 'due':
+        finalTargetUrl = `/treasurer/dues/${relatedEntityId}`;
+        break;
+      case 'payment':
+        finalTargetUrl = `/payments/${relatedEntityId}`;
+        break;
+      case 'loan':
+        finalTargetUrl = `/loans/${relatedEntityId}`;
+        break;
+      default:
+        finalTargetUrl = null;
+    }
+  }
   
   try {
     const result = await db.query(
-      `INSERT INTO notifications (user_id, message, type, related_entity_type, related_entity_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO notifications (user_id, message, type, related_entity_type, related_entity_id, target_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [userId, message, type, relatedEntityType, relatedEntityId]
+      [userId, message, type, relatedEntityType, relatedEntityId, finalTargetUrl]
     );
     
     return result.rows[0];
@@ -60,7 +78,7 @@ const getUsersInGroup = async (groupId) => {
     const result = await db.query(
       `SELECT id, email, first_name, last_name 
        FROM users 
-       WHERE group_id = $1 AND deleted_at IS NULL`,
+       WHERE group_id = $1 AND is_active = true`,
       [groupId]
     );
     
@@ -72,7 +90,7 @@ const getUsersInGroup = async (groupId) => {
 };
 
 /**
- * Notify all users in a group about a new due
+ * Notify users about a new due (all users in group or selected users)
  * @param {Object} dueData - Due information
  * @param {number} dueData.dueId - Due ID
  * @param {string} dueData.title - Due title
@@ -80,13 +98,27 @@ const getUsersInGroup = async (groupId) => {
  * @param {Date} dueData.dueDate - Due date
  * @param {number} dueData.groupId - Group ID
  * @param {string} dueData.creatorName - Name of the user who created the due
+ * @param {number[]} [dueData.targetUserIds] - Specific user IDs to notify (optional)
  */
 const notifyNewDue = async (dueData) => {
-  const { dueId, title, amount, dueDate, groupId, creatorName } = dueData;
+  const { dueId, title, amount, dueDate, groupId, creatorName, targetUserIds } = dueData;
   
   try {
-    // Get all users in the group
-    const users = await getUsersInGroup(groupId);
+    let users;
+    
+    if (targetUserIds && targetUserIds.length > 0) {
+      // Notify only selected users
+      const result = await db.query(
+        `SELECT id, email, first_name, last_name 
+         FROM users 
+         WHERE id = ANY($1) AND group_id = $2 AND is_active = true`,
+        [targetUserIds, groupId]
+      );
+      users = result.rows;
+    } else {
+      // Get all users in the group (backward compatibility)
+      users = await getUsersInGroup(groupId);
+    }
     
     // Create in-app notifications
     const message = `New due "${title}" for ₱${amount.toFixed(2)} has been created by ${creatorName}. Due date: ${new Date(dueDate).toLocaleDateString()}`;
@@ -215,7 +247,7 @@ const notifyUpcomingDueDeadline = async (dueData) => {
        JOIN user_dues ud ON u.id = ud.user_id
        WHERE ud.due_id = $1 
        AND ud.status IN ('pending', 'partially_paid')
-       AND u.deleted_at IS NULL`,
+       AND u.is_active = true`,
       [dueId]
     );
     
@@ -265,23 +297,18 @@ const notifyUpcomingDueDeadline = async (dueData) => {
  * @param {Object} options - Query options
  */
 const getUserNotifications = async (userId, options = {}) => {
-  const { limit = 20, offset = 0, unreadOnly = false } = options;
+  const { limit = 20, offset = 0, unreadOnly = false, archived = false } = options;
   
   try {
-    let query = `
-      SELECT * FROM notifications 
-      WHERE user_id = $1
-    `;
-    
+    let query = `SELECT * FROM notifications WHERE user_id = $1`;
     const params = [userId];
-    
     if (unreadOnly) {
       query += ` AND is_read = false`;
     }
-    
-    query += ` ORDER BY created_at DESC LIMIT $2 OFFSET $3`;
+    query += ` AND archived = $2`;
+    params.push(archived);
+    query += ` ORDER BY created_at DESC LIMIT $3 OFFSET $4`;
     params.push(limit, offset);
-    
     const result = await db.query(query, params);
     
     return result.rows;
@@ -333,6 +360,42 @@ const getUnreadCount = async (userId) => {
   }
 };
 
+/**
+ * Archive a notification
+ * @param {number} userId
+ * @param {number} notificationId
+ */
+const archiveNotification = async (userId, notificationId) => {
+  try {
+    const result = await db.query(
+      `UPDATE notifications SET archived = true WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [notificationId, userId]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error archiving notification:', error);
+    throw error;
+  }
+};
+
+/**
+ * Unarchive a notification
+ * @param {number} userId
+ * @param {number} notificationId
+ */
+const unarchiveNotification = async (userId, notificationId) => {
+  try {
+    const result = await db.query(
+      `UPDATE notifications SET archived = false WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [notificationId, userId]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error unarchiving notification:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   createNotification,
   createBulkNotifications,
@@ -343,5 +406,7 @@ module.exports = {
   notifyUpcomingDueDeadline,
   getUserNotifications,
   markNotificationsAsRead,
-  getUnreadCount
+  getUnreadCount,
+  archiveNotification,
+  unarchiveNotification
 }; 

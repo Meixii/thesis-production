@@ -11,6 +11,7 @@ interface DuePaymentModalProps {
   dueId: number;
   dueTitle: string;
   remainingAmount: number;
+  paymentMethodRestriction?: 'all' | 'online_only' | 'cash_only';
   onSuccess: () => void;
 }
 
@@ -24,6 +25,7 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
   dueId,
   dueTitle,
   remainingAmount,
+  paymentMethodRestriction = 'all',
   onSuccess
 }) => {
   const { showToast } = useToast();
@@ -81,8 +83,8 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
       console.log('Submitting payment:', { amount: remainingAmount, method: selectedMethod });
       const amount = paymentType === 'full' ? remainingAmount : parseFloat(partialAmount);
 
-      if (paymentType === 'partial' && (isNaN(amount) || amount <= 0 || amount >= remainingAmount)) {
-        showToast('Please enter a valid partial amount less than the remaining balance', 'error');
+      if (paymentType === 'partial' && (isNaN(amount) || amount <= 0 || amount > remainingAmount)) {
+        showToast(`Please enter a valid partial amount less than or equal to ₱${remainingAmount.toFixed(2)}`,'error');
         setLoading(false);
         return;
       }
@@ -126,6 +128,18 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
       setError(err instanceof Error ? err.message : 'Failed to submit payment');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to get allowed payment methods
+  const getAllowedPaymentMethods = (): PaymentMethod[] => {
+    switch (paymentMethodRestriction) {
+      case 'online_only':
+        return ['gcash', 'maya'];
+      case 'cash_only':
+        return ['cash'];
+      default:
+        return ['gcash', 'maya', 'cash'];
     }
   };
 
@@ -210,10 +224,10 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
               value={partialAmount}
               onChange={(e) => setPartialAmount(e.target.value)}
               min={1}
-              max={remainingAmount - 0.01}
+              max={remainingAmount}
               step="0.01"
               required
-              helperText={`Enter an amount less than ₱${remainingAmount.toFixed(2)}`}
+              helperText={`Enter an amount less than or equal to ₱${remainingAmount.toFixed(2)}`}
             />
           )}
           {/* Payment Method Selection */}
@@ -221,25 +235,62 @@ const DuePaymentModal: React.FC<DuePaymentModalProps> = ({
             <label className="block text-base font-medium text-gray-800 dark:text-gray-200 mb-2">
               Select Payment Method
             </label>
+            {paymentMethodRestriction !== 'all' && (
+              <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                  {paymentMethodRestriction === 'online_only' 
+                    ? '⚠️ This due only accepts online payments (GCash or Maya)'
+                    : '⚠️ This due only accepts cash payments'
+                  }
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {(['gcash', 'maya', 'cash'] as PaymentMethod[]).map((method) => (
-                <button
-                  key={method}
-                  type="button"
-                  onClick={() => { setSelectedMethod(method); setReferenceId(''); setFile(null); setFileError(''); setError(''); setCashConfirmed(false); }}
-                  className={`p-4 rounded-xl border-2 transition-all w-full
-                    ${selectedMethod === method
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-400 ring-2 ring-blue-300 dark:ring-blue-700 shadow-md'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 shadow-sm'}
-                  `}
-                >
-                  <div className="text-center">
-                    <span className="block text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                      {method}
-                    </span>
-                  </div>
-                </button>
-              ))}
+              {(['gcash', 'maya', 'cash'] as PaymentMethod[]).map((method) => {
+                const isAllowed = getAllowedPaymentMethods().includes(method);
+                const isSelected = selectedMethod === method;
+                
+                return (
+                  <button
+                    key={method}
+                    type="button"
+                    disabled={!isAllowed}
+                    onClick={() => { 
+                      if (isAllowed) {
+                        setSelectedMethod(method); 
+                        setReferenceId(''); 
+                        setFile(null); 
+                        setFileError(''); 
+                        setError(''); 
+                        setCashConfirmed(false);
+                      }
+                    }}
+                    className={`p-4 rounded-xl border-2 transition-all w-full
+                      ${isSelected
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-400 ring-2 ring-blue-300 dark:ring-blue-700 shadow-md'
+                        : isAllowed
+                        ? 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 shadow-sm'
+                        : 'border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
+                      }
+                    `}
+                  >
+                    <div className="text-center">
+                      <span className={`block text-lg font-semibold capitalize ${
+                        isAllowed 
+                          ? 'text-gray-900 dark:text-white' 
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {method}
+                      </span>
+                      {!isAllowed && (
+                        <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Not Allowed
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
           {/* GCash/Maya Fields */}

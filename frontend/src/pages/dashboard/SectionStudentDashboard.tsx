@@ -32,6 +32,7 @@ interface Due {
   description: string;
   totalAmountDue: number;
   dueDate: string;
+  paymentMethodRestriction?: 'all' | 'online_only' | 'cash_only';
   status: string;
   amountPaid: number;
   remaining: number;
@@ -527,6 +528,7 @@ const SectionStudentDashboard = () => {
           dueId={dueDetails.dueId}
           dueTitle={dueDetails.title}
           remainingAmount={dueDetails.remaining}
+          paymentMethodRestriction={dueDetails.paymentMethodRestriction}
           onSuccess={async () => {
             // Refresh due details after payment
             setDetailsLoading(true);
