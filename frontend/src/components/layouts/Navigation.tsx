@@ -81,7 +81,7 @@ const TypewriterEffect: React.FC = () => {
 
   useEffect(() => {
     const currentPhrase = shuffledPhrases[phraseIndex];
-    let timer: number | undefined;
+    let timer: NodeJS.Timeout | undefined;
 
     if (pauseEnd) {
       // Pause at the end of the phrase for 5 seconds (reduced from 10)
@@ -493,10 +493,10 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
       <div className={`${isOpen ? 'block' : 'hidden'} lg:hidden transition-all duration-200 ease-in-out`}>
         <div className="pt-2 pb-3 space-y-1">
           {/* Notification Bell for mobile */}
-          <div className="px-4 py-2 flex items-center">
+          {/* <div className="px-4 py-2 flex items-center">
             <NotificationBell />
             <span className="ml-2 text-sm text-gray-700 dark:text-gray-200 font-medium">Notifications</span>
-          </div>
+          </div> */}
           {getNavItems().map((item) => (
             isCategory(item) ? (
               <MobileNavDropdown
