@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import Navigation from '../layouts/Navigation';
 import DashboardCard from '../dashboard/DashboardCard';
 import ConfirmModal from '../ui/ConfirmModal';
+import Modal from '../ui/Modal';
 
 interface Due {
   id: number;
@@ -64,6 +65,16 @@ const DuesList = () => {
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
   const [batchEdits, setBatchEdits] = useState<Map<number, { status: string; amount: number }>>(new Map());
   const [batchUpdating, setBatchUpdating] = useState(false);
+  
+  // Student management states
+  const [showAddStudentsModal, setShowAddStudentsModal] = useState(false);
+  const [showRemoveStudentsModal, setShowRemoveStudentsModal] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+  const [selectedStudentsToAdd, setSelectedStudentsToAdd] = useState<Set<number>>(new Set());
+  const [selectedStudentsToRemove, setSelectedStudentsToRemove] = useState<Set<number>>(new Set());
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [addingStudents, setAddingStudents] = useState(false);
+  const [removingStudents, setRemovingStudents] = useState(false);
 
   useEffect(() => {
     fetchDues();
@@ -376,6 +387,140 @@ const DuesList = () => {
     setConfirmDeleteDue(null);
   };
 
+  const fetchAvailableStudents = async (dueId: number) => {
+    setLoadingStudents(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/api/treasurer/dues/${dueId}/available-students`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch available students');
+      }
+
+      const data = await response.json();
+      setAvailableStudents(data.available_students);
+    } catch (error) {
+      showToast('Failed to load available students', 'error');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const handleAddStudents = async () => {
+    if (!selectedDueId || selectedStudentsToAdd.size === 0) return;
+    
+    setAddingStudents(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/api/treasurer/dues/${selectedDueId}/students`), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          student_ids: Array.from(selectedStudentsToAdd)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add students');
+      }
+
+      const result = await response.json();
+      showToast(result.message, 'success');
+      
+      // Refresh due details and main list
+      await fetchDueDetails(selectedDueId);
+      await fetchDues();
+      
+      // Reset state
+      setShowAddStudentsModal(false);
+      setSelectedStudentsToAdd(new Set());
+      setAvailableStudents([]);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to add students', 'error');
+    } finally {
+      setAddingStudents(false);
+    }
+  };
+
+  const handleRemoveStudents = async () => {
+    if (!selectedDueId || selectedStudentsToRemove.size === 0) return;
+    
+    setRemovingStudents(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/api/treasurer/dues/${selectedDueId}/students`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          student_ids: Array.from(selectedStudentsToRemove)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove students');
+      }
+
+      const result = await response.json();
+      showToast(result.message, 'success');
+      
+      // Refresh due details and main list
+      await fetchDueDetails(selectedDueId);
+      await fetchDues();
+      
+      // Reset state
+      setShowRemoveStudentsModal(false);
+      setSelectedStudentsToRemove(new Set());
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to remove students', 'error');
+    } finally {
+      setRemovingStudents(false);
+    }
+  };
+
+  const openAddStudentsModal = () => {
+    setSelectedStudentsToAdd(new Set());
+    fetchAvailableStudents(selectedDueId!);
+    setShowAddStudentsModal(true);
+  };
+
+  const openRemoveStudentsModal = () => {
+    setSelectedStudentsToRemove(new Set());
+    setShowRemoveStudentsModal(true);
+  };
+
+  const toggleStudentSelectionForAdd = (studentId: number) => {
+    const newSelected = new Set(selectedStudentsToAdd);
+    if (newSelected.has(studentId)) {
+      newSelected.delete(studentId);
+    } else {
+      newSelected.add(studentId);
+    }
+    setSelectedStudentsToAdd(newSelected);
+  };
+
+  const toggleStudentSelectionForRemove = (studentId: number) => {
+    const newSelected = new Set(selectedStudentsToRemove);
+    if (newSelected.has(studentId)) {
+      newSelected.delete(studentId);
+    } else {
+      newSelected.add(studentId);
+    }
+    setSelectedStudentsToRemove(newSelected);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background-secondary dark:bg-neutral-900 flex items-center justify-center">
@@ -425,6 +570,22 @@ const DuesList = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={openAddStudentsModal}
+                      className="px-3 py-1"
+                    >
+                      Add Students
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={openRemoveStudentsModal}
+                      className="px-3 py-1"
+                    >
+                      Remove Students
+                    </Button>
                     {batchEditMode && (
                       <>
                         {selectedUsers.size > 0 && (
@@ -866,6 +1027,192 @@ const DuesList = () => {
         isLoading={!!deletingDueId}
         size="sm"
       />
+
+      {/* Add Students Modal */}
+      <Modal
+        isOpen={showAddStudentsModal}
+        onClose={() => setShowAddStudentsModal(false)}
+        title="Add Students to Due"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {loadingStudents ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : availableStudents.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              All students are already assigned to this due.
+            </div>
+          ) : (
+            <>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-neutral-800 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentsToAdd.size === availableStudents.length && availableStudents.length > 0}
+                          onChange={() => {
+                            if (selectedStudentsToAdd.size === availableStudents.length) {
+                              setSelectedStudentsToAdd(new Set());
+                            } else {
+                              setSelectedStudentsToAdd(new Set(availableStudents.map(s => s.id)));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Student Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {availableStudents.map(student => (
+                      <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentsToAdd.has(student.id)}
+                            onChange={() => toggleStudentSelectionForAdd(student.id)}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {student.first_name} {student.last_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {student.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {student.role.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {selectedStudentsToAdd.size} student(s) selected
+                </span>
+                <div className="flex space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddStudentsModal(false)}
+                    disabled={addingStudents}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleAddStudents}
+                    disabled={addingStudents || selectedStudentsToAdd.size === 0}
+                    isLoading={addingStudents}
+                    loadingText="Adding..."
+                  >
+                    Add Selected Students
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
+      {/* Remove Students Modal */}
+      <Modal
+        isOpen={showRemoveStudentsModal}
+        onClose={() => setShowRemoveStudentsModal(false)}
+        title="Remove Students from Due"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {dueDetails && dueDetails.user_statuses.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              No students are currently assigned to this due.
+            </div>
+          ) : (
+            <>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-neutral-800 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentsToRemove.size === dueDetails?.user_statuses.length && dueDetails?.user_statuses.length > 0}
+                          onChange={() => {
+                            if (selectedStudentsToRemove.size === dueDetails?.user_statuses.length) {
+                              setSelectedStudentsToRemove(new Set());
+                            } else {
+                              setSelectedStudentsToRemove(new Set(dueDetails?.user_statuses.map(u => u.user_id) || []));
+                            }
+                          }}
+                          className="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                        />
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Student Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-neutral-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {dueDetails?.user_statuses.map(user => (
+                      <tr key={user.user_id} className="hover:bg-gray-50 dark:hover:bg-neutral-800">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentsToRemove.has(user.user_id)}
+                            onChange={() => toggleStudentSelectionForRemove(user.user_id)}
+                            className="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {user.user_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeColor(user.status)}`}>
+                            {user.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {formatCurrency(user.amount_paid)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {selectedStudentsToRemove.size} student(s) selected
+                </span>
+                <div className="flex space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRemoveStudentsModal(false)}
+                    disabled={removingStudents}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleRemoveStudents}
+                    disabled={removingStudents || selectedStudentsToRemove.size === 0}
+                    isLoading={removingStudents}
+                    loadingText="Removing..."
+                  >
+                    Remove Selected Students
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -16,6 +16,7 @@ router.get('/group', treasurerController.getGroupDetails);
 // Dashboard data
 router.get('/dashboard', treasurerController.getDashboardData);
 router.get('/stats', treasurerController.getStats);
+router.get('/payments/recent', treasurerController.getRecentPayments);
 
 // Dues management
 router.get('/dues', treasurerController.getDues);
@@ -26,6 +27,9 @@ router.delete('/dues/:dueId', treasurerController.deleteDue);
 router.patch('/dues/:dueId/date', treasurerController.updateDueDate);
 router.patch('/dues/:dueId/users/:userId/payment', treasurerController.updateUserPaymentStatus);
 router.patch('/dues/:dueId/users/batch-payment', treasurerController.batchUpdateUserPaymentStatus);
+router.post('/dues/:dueId/students', treasurerController.addStudentsToDue);
+router.delete('/dues/:dueId/students', treasurerController.removeStudentsFromDue);
+router.get('/dues/:dueId/available-students', treasurerController.getAvailableStudentsForDue);
 
 // Payment management
 router.get('/payments/pending', treasurerController.getPendingPayments);

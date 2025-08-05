@@ -52,4 +52,58 @@ const Card: React.FC<CardProps> = ({
   );
 };
 
-export default Card; 
+// Card sub-components for Shadcn compatibility
+interface CardHeaderProps {
+  children: ReactNode;
+  className?: string;
+}
+
+const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => {
+  return (
+    <div className={`flex flex-col space-y-1.5 p-6 ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+interface CardTitleProps {
+  children: ReactNode;
+  className?: string;
+}
+
+const CardTitle: React.FC<CardTitleProps> = ({ children, className = '' }) => {
+  return (
+    <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`}>
+      {children}
+    </h3>
+  );
+};
+
+interface CardDescriptionProps {
+  children: ReactNode;
+  className?: string;
+}
+
+const CardDescription: React.FC<CardDescriptionProps> = ({ children, className = '' }) => {
+  return (
+    <p className={`text-sm text-muted-foreground ${className}`}>
+      {children}
+    </p>
+  );
+};
+
+interface CardContentProps {
+  children: ReactNode;
+  className?: string;
+}
+
+const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => {
+  return (
+    <div className={`p-6 pt-0 ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+export default Card;
+export { CardHeader, CardTitle, CardDescription, CardContent }; 

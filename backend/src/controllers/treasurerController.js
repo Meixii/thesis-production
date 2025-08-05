@@ -56,18 +56,32 @@ const getDashboardData = async (req, res) => {
 
     // Get collection trend
     const collectionTrendResult = await db.query(
-      `SELECT 
-         TO_CHAR(DATE_TRUNC('month', p.created_at), 'Mon') as month,
-         EXTRACT(MONTH FROM p.created_at) as month_num,
-         COALESCE(SUM(pad.amount_allocated), 0) as total
-       FROM payments p
-       JOIN payment_allocations_dues pad ON p.id = pad.payment_id
-       JOIN user_dues ud ON pad.user_due_id = ud.id
-       JOIN dues d ON ud.due_id = d.id
-       WHERE d.group_id = $1 
-         AND p.status = 'verified'
-         AND p.created_at >= NOW() - INTERVAL '6 months'
-       GROUP BY DATE_TRUNC('month', p.created_at), EXTRACT(MONTH FROM p.created_at)
+      `WITH months AS (
+         SELECT generate_series(
+           DATE_TRUNC('month', NOW() - INTERVAL '5 months'),
+           DATE_TRUNC('month', NOW()),
+           '1 month'::interval
+         ) as month_date
+       ),
+       payment_data AS (
+         SELECT 
+           DATE_TRUNC('month', p.created_at) as month_date,
+           COALESCE(SUM(pad.amount_allocated), 0) as total
+         FROM payments p
+         JOIN payment_allocations_dues pad ON p.id = pad.payment_id
+         JOIN user_dues ud ON pad.user_due_id = ud.id
+         JOIN dues d ON ud.due_id = d.id
+         WHERE d.group_id = $1 
+           AND p.status = 'verified'
+           AND p.created_at >= NOW() - INTERVAL '6 months'
+         GROUP BY DATE_TRUNC('month', p.created_at)
+       )
+       SELECT 
+         TO_CHAR(m.month_date, 'Mon') as month,
+         EXTRACT(MONTH FROM m.month_date) as month_num,
+         COALESCE(pd.total, 0) as total
+       FROM months m
+       LEFT JOIN payment_data pd ON m.month_date = pd.month_date
        ORDER BY month_num ASC`,
       [groupId]
     );
@@ -88,7 +102,7 @@ const getDashboardData = async (req, res) => {
 
     // Get recent payments
     const recentPaymentsResult = await db.query(
-      `SELECT DISTINCT ON (p.id)
+      `SELECT 
          p.id,
          CONCAT(u.first_name, ' ', u.last_name) as user_name,
          p.amount,
@@ -101,7 +115,8 @@ const getDashboardData = async (req, res) => {
        JOIN dues d ON ud.due_id = d.id
        JOIN users u ON ud.user_id = u.id
        WHERE d.group_id = $1
-       ORDER BY p.id, p.created_at DESC
+         AND p.created_at >= NOW() - INTERVAL '30 days'
+       ORDER BY p.created_at DESC
        LIMIT 5`,
       [groupId]
     );
@@ -127,6 +142,58 @@ const getDashboardData = async (req, res) => {
   } catch (error) {
     console.error('Get treasurer dashboard data error:', error);
     res.status(500).json({ error: 'Server error while fetching dashboard data' });
+  }
+};
+
+/**
+ * Get recent payments for treasurer dashboard
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getRecentPayments = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const groupId = req.user.groupId;
+    if (!groupId) {
+      return res.status(400).json({ error: 'No group assigned to treasurer' });
+    }
+
+    const limit = parseInt(req.query.limit) || 10;
+    const days = parseInt(req.query.days) || 30;
+
+    const recentPaymentsResult = await db.query(
+      `SELECT 
+         p.id,
+         CONCAT(u.first_name, ' ', u.last_name) as user_name,
+         p.amount,
+         d.title as due_title,
+         p.created_at,
+         p.status,
+         p.method
+       FROM payments p
+       JOIN payment_allocations_dues pad ON p.id = pad.payment_id
+       JOIN user_dues ud ON pad.user_due_id = ud.id
+       JOIN dues d ON ud.due_id = d.id
+       JOIN users u ON ud.user_id = u.id
+       WHERE d.group_id = $1
+         AND p.created_at >= NOW() - INTERVAL '${days} days'
+       ORDER BY p.created_at DESC
+       LIMIT $2`,
+      [groupId, limit]
+    );
+
+    res.json({
+      payments: recentPaymentsResult.rows.map(row => ({
+        ...row,
+        amount: parseFloat(row.amount) || 0
+      }))
+    });
+  } catch (error) {
+    console.error('Get recent payments error:', error);
+    res.status(500).json({ error: 'Server error while fetching recent payments' });
   }
 };
 
@@ -203,6 +270,7 @@ const getDues = async (req, res) => {
 
     const groupId = req.user.groupId;
     const limit = req.query.limit ? parseInt(req.query.limit) : null;
+    const offset = req.query.offset ? parseInt(req.query.offset) : 0;
 
     let query = `
       SELECT 
@@ -228,11 +296,20 @@ const getDues = async (req, res) => {
       ORDER BY d.created_at DESC
     `;
 
+    const values = [groupId];
+    let paramIndex = 2;
+
     if (limit) {
-      query += ' LIMIT $2';
+      query += ` LIMIT $${paramIndex}`;
+      values.push(limit);
+      paramIndex++;
     }
 
-    const values = limit ? [groupId, limit] : [groupId];
+    if (offset > 0) {
+      query += ` OFFSET $${paramIndex}`;
+      values.push(offset);
+    }
+
     const result = await db.query(query, values);
 
     // Update all due statuses before returning results
@@ -2246,10 +2323,238 @@ const batchUpdateUserPaymentStatus = async (req, res) => {
   }
 };
 
+/**
+ * Add students to a due
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const addStudentsToDue = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { dueId } = req.params;
+    const { student_ids } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
+      return res.status(400).json({ error: 'Student IDs array is required and must not be empty' });
+    }
+
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if due exists and belongs to this group
+      const dueResult = await client.query(
+        'SELECT id, title FROM dues WHERE id = $1 AND group_id = $2',
+        [dueId, groupId]
+      );
+
+      if (dueResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Due not found or does not belong to your group' });
+      }
+
+      // Validate that all students belong to the treasurer's group
+      const studentsResult = await client.query(
+        `SELECT id, first_name, last_name, email 
+         FROM users 
+         WHERE id = ANY($1) 
+         AND group_id = $2 
+         AND is_active = true 
+         AND role IN ('student', 'finance_coordinator')`,
+        [student_ids, groupId]
+      );
+
+      if (studentsResult.rows.length !== student_ids.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Some selected students do not belong to your group or are not valid' });
+      }
+
+      // Check which students are already assigned to this due
+      const existingAssignmentsResult = await client.query(
+        'SELECT user_id FROM user_dues WHERE due_id = $1 AND user_id = ANY($2)',
+        [dueId, student_ids]
+      );
+
+      const existingUserIds = existingAssignmentsResult.rows.map(row => row.user_id);
+      const newStudentIds = student_ids.filter(id => !existingUserIds.includes(id));
+
+      if (newStudentIds.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'All selected students are already assigned to this due' });
+      }
+
+      // Add new students to the due
+      for (const userId of newStudentIds) {
+        await client.query(
+          `INSERT INTO user_dues (due_id, user_id, status)
+           VALUES ($1, $2, 'pending')`,
+          [dueId, userId]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        message: `Successfully added ${newStudentIds.length} students to the due`,
+        added_count: newStudentIds.length,
+        already_assigned: existingUserIds.length
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Add students to due error:', error);
+    res.status(500).json({ error: 'Server error while adding students to due' });
+  }
+};
+
+/**
+ * Remove students from a due
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const removeStudentsFromDue = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { dueId } = req.params;
+    const { student_ids } = req.body;
+    const groupId = req.user.groupId;
+
+    // Validate required fields
+    if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
+      return res.status(400).json({ error: 'Student IDs array is required and must not be empty' });
+    }
+
+    // Start transaction
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if due exists and belongs to this group
+      const dueResult = await client.query(
+        'SELECT id, title FROM dues WHERE id = $1 AND group_id = $2',
+        [dueId, groupId]
+      );
+
+      if (dueResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Due not found or does not belong to your group' });
+      }
+
+      // Check which students are actually assigned to this due
+      const existingAssignmentsResult = await client.query(
+        `SELECT ud.user_id, u.first_name, u.last_name
+         FROM user_dues ud
+         JOIN users u ON ud.user_id = u.id
+         WHERE ud.due_id = $1 AND ud.user_id = ANY($2)`,
+        [dueId, student_ids]
+      );
+
+      const existingUserIds = existingAssignmentsResult.rows.map(row => row.user_id);
+      const notFoundIds = student_ids.filter(id => !existingUserIds.includes(id));
+
+      if (existingUserIds.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'None of the selected students are assigned to this due' });
+      }
+
+      // Delete payment allocations for these users first
+      await client.query(
+        `DELETE FROM payment_allocations_dues 
+         WHERE user_due_id IN (
+           SELECT id FROM user_dues 
+           WHERE due_id = $1 AND user_id = ANY($2)
+         )`,
+        [dueId, existingUserIds]
+      );
+
+      // Remove students from the due
+      await client.query(
+        'DELETE FROM user_dues WHERE due_id = $1 AND user_id = ANY($2)',
+        [dueId, existingUserIds]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        message: `Successfully removed ${existingUserIds.length} students from the due`,
+        removed_count: existingUserIds.length,
+        not_found: notFoundIds.length
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Remove students from due error:', error);
+    res.status(500).json({ error: 'Server error while removing students from due' });
+  }
+};
+
+/**
+ * Get available students for a due (students not yet assigned)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getAvailableStudentsForDue = async (req, res) => {
+  try {
+    if (req.user.role !== 'treasurer') {
+      return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
+    }
+
+    const { dueId } = req.params;
+    const groupId = req.user.groupId;
+
+    // Check if due exists and belongs to this group
+    const dueResult = await db.query(
+      'SELECT id, title FROM dues WHERE id = $1 AND group_id = $2',
+      [dueId, groupId]
+    );
+
+    if (dueResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Due not found or does not belong to your group' });
+    }
+
+    // Get all active students in the group who are not assigned to this due
+    const result = await db.query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role
+       FROM users u
+       WHERE u.group_id = $1 
+       AND u.is_active = true 
+       AND u.role IN ('student', 'finance_coordinator')
+       AND u.id NOT IN (
+         SELECT user_id FROM user_dues WHERE due_id = $2
+       )
+       ORDER BY u.last_name, u.first_name`,
+      [groupId, dueId]
+    );
+
+    res.json({ available_students: result.rows });
+  } catch (error) {
+    console.error('Get available students for due error:', error);
+    res.status(500).json({ error: 'Server error while fetching available students' });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   getDashboardData,
+  getRecentPayments,
   getDues,
   createDue,
   getDueStatus,
@@ -2277,5 +2582,8 @@ module.exports = {
   deleteChecklistItem,
   exportChecklistStatus,
   updateUserPaymentStatus,
-  batchUpdateUserPaymentStatus
+  batchUpdateUserPaymentStatus,
+  addStudentsToDue,
+  removeStudentsFromDue,
+  getAvailableStudentsForDue
 }; 
