@@ -5,7 +5,6 @@ import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import DuePaymentModal from '../../components/ui/DuePaymentModal';
-import { ChartContainer, ChartTooltipContent } from '../../components/ui/chart';
 
 interface UserProfile {
   id: number;
