@@ -14,9 +14,7 @@ import {
 import {
   ChartConfig,
   ChartContainer,
-  ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
   ChartLegendContent,
 } from "./chart"
 

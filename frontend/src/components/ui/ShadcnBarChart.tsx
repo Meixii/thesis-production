@@ -1,13 +1,11 @@
 "use client"
 
-import * as React from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 
 import Card, { CardContent, CardDescription, CardHeader, CardTitle } from "./Card"
 import {
   ChartConfig,
   ChartContainer,
-  ChartTooltip,
   ChartTooltipContent,
 } from "./chart"
 

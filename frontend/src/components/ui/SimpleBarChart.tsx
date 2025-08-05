@@ -114,7 +114,7 @@ const SimpleBarChart: React.FC<SimpleBarChartProps> = ({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes growBar {
           from {
             transform: scaleY(0);

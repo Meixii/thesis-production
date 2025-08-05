@@ -141,7 +141,7 @@ const SimplePieChart: React.FC<SimplePieChartProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes rotateIn {
           from {
             transform: rotate(-180deg) scale(0.8);

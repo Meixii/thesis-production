@@ -81,7 +81,7 @@ const TypewriterEffect: React.FC = () => {
 
   useEffect(() => {
     const currentPhrase = shuffledPhrases[phraseIndex];
-    let timer: NodeJS.Timeout | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     if (pauseEnd) {
       // Pause at the end of the phrase for 5 seconds (reduced from 10)

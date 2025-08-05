@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Bar, BarChart, Line, LineChart, Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { Legend } from "recharts"
 
 import { cn } from "../../lib/utils"
 
@@ -41,26 +41,7 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "ChartContainer"
 
-interface ChartTooltipProps {
-  children: React.ReactNode
-  className?: string
-}
 
-const ChartTooltip = React.forwardRef<
-  HTMLDivElement,
-  ChartTooltipProps
->(({ children, className, ...props }, ref) => {
-  return (
-    <Tooltip
-      ref={ref}
-      className={cn("rounded-lg border bg-background p-2 shadow-sm", className)}
-      {...props}
-    >
-      {children}
-    </Tooltip>
-  )
-})
-ChartTooltip.displayName = "ChartTooltip"
 
 interface ChartTooltipContentProps {
   active?: boolean
@@ -129,7 +110,7 @@ interface ChartLegendProps {
 }
 
 const ChartLegend = React.forwardRef<
-  HTMLDivElement,
+  Legend,
   ChartLegendProps
 >(({ children, className, ...props }, ref) => {
   return (
@@ -180,7 +161,6 @@ ChartLegendContent.displayName = "ChartLegendContent"
 
 export {
   ChartContainer,
-  ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
