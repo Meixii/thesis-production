@@ -43,7 +43,7 @@ import LoanManagement from './components/fc/LoanManagement';
 import LoanDisbursement from './components/fc/LoanDisbursement';
 import PayExpense from './pages/PayExpense';
 import TreasurerSettings from './components/treasurer/TreasurerSettings';
-import Notifications from './pages/Notifications';
+// import Notifications from './pages/Notifications';
 
 function RequireGroup({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -323,7 +323,7 @@ function App() {
             }
           />
           <Route path="/pay-expense" element={<ProtectedRoute><PayExpense /></ProtectedRoute>} />
-          <Route path="/notifications" element={<Notifications />} />
+          {/* <Route path="/notifications" element={<Notifications />} /> */}
           {/* Add this as the last route to catch all unmatched routes */}
           <Route path="*" element={<NotFound />} />
         </Routes>

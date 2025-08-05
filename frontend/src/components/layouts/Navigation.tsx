@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import LogoutButton from '../ui/LogoutButton';
 import NavDropdown from '../ui/NavDropdown';
 import MobileNavDropdown from '../ui/MobileNavDropdown';
-import NotificationBell from '../ui/NotificationBell';
+// import NotificationBell from '../ui/NotificationBell';
 
 interface NavigationProps {
   userRole: 'student' | 'finance_coordinator' | 'treasurer' | 'admin';
@@ -445,7 +445,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
 
           {/* Profile and Logout Section - Desktop */}
           <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
-            <NotificationBell />
+            {/* <NotificationBell /> */}
             <Link
               to={`/profile`}
               className={`${
@@ -468,7 +468,7 @@ const Navigation = ({ userRole, onLogout, groupType }: NavigationProps) => {
             
           {/* Mobile menu button */}
           <div className="flex items-center lg:hidden">
-            <NotificationBell />
+            {/* <NotificationBell /> */}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-700 focus:outline-none transition-colors"
