@@ -456,7 +456,14 @@ const createDue = async (req, res) => {
 
       // Send notification to assigned users only
       try {
-        const creatorName = `${req.user.firstName} ${req.user.lastName}`;
+        // Fetch treasurer's name from DB since auth middleware doesn't include names on req.user
+        const treasurerResult = await db.query(
+          'SELECT first_name, last_name FROM users WHERE id = $1',
+          [req.user.userId]
+        );
+        const creatorName = treasurerResult.rows.length > 0
+          ? `${treasurerResult.rows[0].first_name} ${treasurerResult.rows[0].last_name}`
+          : 'Treasurer';
         await notificationService.notifyNewDue({
           dueId,
           title,

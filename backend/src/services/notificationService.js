@@ -14,17 +14,48 @@ const { sendNotificationEmail } = require('../utils/email');
 const createNotification = async (notificationData) => {
   const { userId, message, type, relatedEntityType, relatedEntityId, targetUrl } = notificationData;
   let finalTargetUrl = targetUrl;
+  
   // Auto-generate target_url for common types if not provided
   if (!finalTargetUrl && relatedEntityType && relatedEntityId) {
+    // Get user role to determine appropriate target URL
+    let userRole = null;
+    try {
+      const userResult = await db.query(
+        'SELECT role FROM users WHERE id = $1',
+        [userId]
+      );
+      if (userResult.rows.length > 0) {
+        userRole = userResult.rows[0].role;
+      }
+    } catch (error) {
+      console.error('Error getting user role for notification:', error);
+    }
+
     switch (relatedEntityType) {
       case 'due':
-        finalTargetUrl = `/treasurer/dues/${relatedEntityId}`;
+        if (userRole === 'treasurer') {
+          finalTargetUrl = `/treasurer/dues/${relatedEntityId}`;
+        } else if (userRole === 'student') {
+          // For students, route to their dashboard where dues are displayed
+          finalTargetUrl = `/dashboard`;
+        } else {
+          // For other roles (admin, finance_coordinator), route to dashboard
+          finalTargetUrl = `/dashboard`;
+        }
         break;
       case 'payment':
-        finalTargetUrl = `/payments/${relatedEntityId}`;
+        if (userRole === 'treasurer') {
+          finalTargetUrl = `/treasurer/payments/pending`;
+        } else {
+          finalTargetUrl = `/payment-history`;
+        }
         break;
       case 'loan':
-        finalTargetUrl = `/loans/${relatedEntityId}`;
+        if (userRole === 'finance_coordinator') {
+          finalTargetUrl = `/loans`;
+        } else {
+          finalTargetUrl = `/loans/my-loans`;
+        }
         break;
       default:
         finalTargetUrl = null;
@@ -104,6 +135,28 @@ const notifyNewDue = async (dueData) => {
   const { dueId, title, amount, dueDate, groupId, creatorName, targetUserIds } = dueData;
   
   try {
+    // Resolve creator name if not provided by caller
+    let resolvedCreatorName = creatorName;
+    if (!resolvedCreatorName && dueId) {
+      try {
+        const nameResult = await db.query(
+          `SELECT u.first_name, u.last_name
+           FROM dues d
+           JOIN users u ON u.id = d.created_by_user_id
+           WHERE d.id = $1
+           LIMIT 1`,
+          [dueId]
+        );
+        if (nameResult.rows.length > 0) {
+          resolvedCreatorName = `${nameResult.rows[0].first_name} ${nameResult.rows[0].last_name}`;
+        }
+      } catch (e) {
+        console.error('Failed to resolve creator name for due:', dueId, e);
+      }
+    }
+    if (!resolvedCreatorName) {
+      resolvedCreatorName = 'Treasurer';
+    }
     let users;
     
     if (targetUserIds && targetUserIds.length > 0) {
@@ -121,7 +174,7 @@ const notifyNewDue = async (dueData) => {
     }
     
     // Create in-app notifications
-    const message = `New due "${title}" for ₱${amount.toFixed(2)} has been created by ${creatorName}. Due date: ${new Date(dueDate).toLocaleDateString()}`;
+    const message = `New due "${title}" for ₱${amount.toFixed(2)} has been created by ${resolvedCreatorName}. Due date: ${new Date(dueDate).toLocaleDateString()}`;
     
     await createBulkNotifications(
       users.map(u => u.id),
@@ -145,7 +198,7 @@ const notifyNewDue = async (dueData) => {
             dueTitle: title,
             amount: amount,
             dueDate: dueDate,
-            creatorName: creatorName
+            creatorName: resolvedCreatorName
           }
         });
       } catch (error) {
