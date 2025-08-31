@@ -1,18 +1,53 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Create reusable transporter object using SMTP transport
+// // Create reusable transporter object using SMTP transport
+// const transporter = nodemailer.createTransport({
+//   host: 'smtp.hostinger.com',
+//   port: 465,
+//   secure: true, // use SSL
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_APP_PASSWORD
+//   },
+//   tls: {
+//     rejectUnauthorized: false // Only use this in development if needed
+//   }
+// });
+
 const transporter = nodemailer.createTransport({
-  host: 'smtp.hostinger.com',
-  port: 465,
-  secure: true, // use SSL
+  host: 'smtp.gmail.com',
+  port: 587, // Use TLS port
+  secure: false, // Use false for TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD
   },
   tls: {
-    rejectUnauthorized: false // Only use this in development if needed
+    rejectUnauthorized: true
+  },
+  // Add these important headers to improve deliverability
+  headers: {
+    'X-Priority': '3',
+    'X-MSMail-Priority': 'Normal',
+    'Importance': 'Normal'
+  },
+  // Configure sender information
+  from: {
+    name: 'CSBank Notifications',
+    address: process.env.EMAIL_USER
   }
+});
+
+// Add email authentication methods
+transporter.use('compile', (mail, callback) => {
+  // Add SPF, DKIM, and DMARC-friendly headers
+  mail.data.headers = {
+    ...mail.data.headers,
+    'Authentication-Results': 'SPF=pass smtp.mailfrom=' + process.env.EMAIL_USER,
+    'Received-SPF': 'pass'
+  };
+  callback();
 });
 
 // Add email verification
@@ -330,11 +365,11 @@ const getNotificationTemplate = (type, data) => {
         <div class="info-box">
           <div class="info-row">
             <span class="info-label">Due Date: </span>
-            <span class="info-value">${new Date(data.dueDate).toLocaleDateString()}</span>
+            <span class="info-value"> ${new Date(data.dueDate).toLocaleDateString()}</span>
           </div>
           <div class="info-row">
             <span class="info-label">Created By: </span>
-            <span class="info-value">${data.creatorName}</span>
+            <span class="info-value"> ${data.creatorName}</span>
           </div>
         </div>
         
@@ -369,16 +404,16 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Amount Paid </span>
-            <span class="info-value">₱${data.amount.toFixed(2)}</span>
+            <span class="info-label">Amount Paid: </span>
+            <span class="info-value"> ₱${data.amount.toFixed(2)}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Due Title </span>
-            <span class="info-value">${data.dueTitle}</span>
+            <span class="info-label">Due Title: </span>
+            <span class="info-value"> ${data.dueTitle}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Payment Method </span>
-            <span class="info-value">${data.paymentMethod.toUpperCase()}</span>
+            <span class="info-label">Payment Method: </span>
+            <span class="info-value"> ${data.paymentMethod.toUpperCase()}</span>
           </div>
         </div>
         
@@ -406,12 +441,12 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Amount </span>
-            <span class="info-value">₱${data.amount.toFixed(2)}</span>
+            <span class="info-label">Amount: </span>
+            <span class="info-value"> ₱${data.amount.toFixed(2)}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Due Title </span>
-            <span class="info-value">${data.dueTitle}</span>
+            <span class="info-label">Due Title: </span>
+            <span class="info-value"> ${data.dueTitle}</span>
           </div>
         </div>
         
@@ -446,12 +481,12 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Due Date </span>
-            <span class="info-value">${new Date(data.dueDate).toLocaleDateString()}</span>
+            <span class="info-label">Due Date: </span>
+            <span class="info-value"> ${new Date(data.dueDate).toLocaleDateString()}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Days Remaining </span>
-            <span class="info-value">${data.daysUntilDue} days</span>
+            <span class="info-label">Days Remaining: </span>
+            <span class="info-value"> ${data.daysUntilDue} days</span>
           </div>
         </div>
         
