@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { getApiUrl } from '../../utils/api';
 import Navigation from '../../components/layouts/Navigation';
 import Modal from '../../components/ui/Modal';
-import Button from '../../components/ui/Button';
 import DuePaymentModal from '../../components/ui/DuePaymentModal';
 import StudentProfile from '../../components/student/StudentProfile';
 import FinancialSummary from '../../components/student/FinancialSummary';

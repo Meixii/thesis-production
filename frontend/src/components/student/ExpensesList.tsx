@@ -22,7 +22,7 @@ const ExpensesList = ({
   onNewRequest,
   onUploadProof
 }: ExpensesListProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
 
   const filteredExpenses = expenses.filter(expense => {
     const searchLower = searchQuery.toLowerCase().trim();

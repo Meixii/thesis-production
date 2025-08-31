@@ -674,7 +674,7 @@ const UsersAdmin = () => {
         title="Reset User Password"
         message="Are you sure you want to reset this user's password to the default value? The user will need to change their password after logging in."
         confirmText="Reset Password"
-        confirmVariant="warning"
+        confirmVariant="danger"
       />
     </div>
   );

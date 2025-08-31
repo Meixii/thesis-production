@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ExpenseCategory } from '../types/student';
+
 import { getApiUrl } from '../utils/api';
 
 interface ExpenseFormData {

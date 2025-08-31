@@ -318,7 +318,7 @@ const TreasurerExpenses = () => {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <DashboardCard className="bg-white dark:bg-neutral-800 shadow-lg">
+          <DashboardCard title="Total Requests" className="bg-white dark:bg-neutral-800 shadow-lg">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -334,7 +334,7 @@ const TreasurerExpenses = () => {
             </div>
           </DashboardCard>
 
-          <DashboardCard className="bg-white dark:bg-neutral-800 shadow-lg">
+          <DashboardCard title="Pending Requests" className="bg-white dark:bg-neutral-800 shadow-lg">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -350,7 +350,7 @@ const TreasurerExpenses = () => {
             </div>
           </DashboardCard>
 
-          <DashboardCard className="bg-white dark:bg-neutral-800 shadow-lg">
+          <DashboardCard title="Approved Requests" className="bg-white dark:bg-neutral-800 shadow-lg">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -366,7 +366,7 @@ const TreasurerExpenses = () => {
             </div>
           </DashboardCard>
 
-          <DashboardCard className="bg-white dark:bg-neutral-800 shadow-lg">
+          <DashboardCard title="Total Amount" className="bg-white dark:bg-neutral-800 shadow-lg">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -384,7 +384,7 @@ const TreasurerExpenses = () => {
         </div>
 
         {/* Filters and Search */}
-        <DashboardCard className="mb-8">
+        <DashboardCard title="Filters and Search" className="mb-8">
           <div className="p-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
@@ -420,7 +420,7 @@ const TreasurerExpenses = () => {
         </DashboardCard>
 
         {/* Expenses List */}
-        <DashboardCard>
+        <DashboardCard title="Expense Requests">
           <div className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Expense Requests ({filteredExpenses.length})
