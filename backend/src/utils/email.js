@@ -15,37 +15,71 @@ require('dotenv').config();
 //   }
 // });
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587, // Use TLS port
-  secure: false, // Use false for TLS
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: true,
-    ciphers: 'SSLv3'
-  },
-  // Connection timeout settings
-  connectionTimeout: 60000, // 60 seconds
-  greetingTimeout: 30000,   // 30 seconds
-  socketTimeout: 60000,     // 60 seconds
-  // Add these important headers to improve deliverability
-  headers: {
-    'X-Priority': '3',
-    'X-MSMail-Priority': 'Normal',
-    'Importance': 'Normal'
-  },
-  // Configure sender information
-  from: {
-    name: 'CSBank Notifications',
-    address: process.env.EMAIL_USER
+// Create multiple transporter options for fallback
+const createTransporter = (type = 'gmail') => {
+  switch (type) {
+    case 'gmail':
+      return nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_APP_PASSWORD
+        },
+        tls: {
+          rejectUnauthorized: true,
+          ciphers: 'SSLv3'
+        },
+        connectionTimeout: 30000, // Reduced to 30 seconds
+        greetingTimeout: 15000,   // Reduced to 15 seconds
+        socketTimeout: 30000,     // Reduced to 30 seconds
+        headers: {
+          'X-Priority': '3',
+          'X-MSMail-Priority': 'Normal',
+          'Importance': 'Normal'
+        },
+        from: {
+          name: 'CSBank Notifications',
+          address: process.env.EMAIL_USER
+        }
+      });
+    
+    case 'gmail_ssl':
+      return nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Use SSL instead of TLS
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_APP_PASSWORD
+        },
+        connectionTimeout: 30000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        headers: {
+          'X-Priority': '3',
+          'X-MSMail-Priority': 'Normal',
+          'Importance': 'Normal'
+        },
+        from: {
+          name: 'CSBank Notifications',
+          address: process.env.EMAIL_USER
+        }
+      });
+    
+    default:
+      throw new Error(`Unknown transporter type: ${type}`);
   }
-});
+};
+
+// Try different transporter configurations
+let currentTransporter = createTransporter('gmail');
+let transporterIndex = 0;
+const transporterTypes = ['gmail', 'gmail_ssl'];
 
 // Add email authentication methods
-transporter.use('compile', (mail, callback) => {
+const addEmailHeaders = (mail, callback) => {
   // Add SPF, DKIM, and DMARC-friendly headers
   mail.data.headers = {
     ...mail.data.headers,
@@ -53,38 +87,78 @@ transporter.use('compile', (mail, callback) => {
     'Received-SPF': 'pass'
   };
   callback();
-});
+};
 
-// Add email verification with retry
+// Add email verification with transporter fallback
 const verifyTransporter = async (retries = 3) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      await new Promise((resolve, reject) => {
-        transporter.verify(function (error, success) {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(success);
-          }
+    // Try different transporter configurations
+    for (let i = 0; i < transporterTypes.length; i++) {
+      try {
+        const type = transporterTypes[i];
+        console.log(`Trying ${type} transporter configuration...`);
+        
+        currentTransporter = createTransporter(type);
+        currentTransporter.use('compile', addEmailHeaders);
+        
+        await new Promise((resolve, reject) => {
+          currentTransporter.verify(function (error, success) {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(success);
+            }
+          });
         });
-      });
-      console.log('SMTP server connection successful');
-      return true;
-    } catch (error) {
-      console.log(`SMTP verification attempt ${attempt} failed:`, error.message);
-      if (attempt < retries) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } else {
-        console.error('All SMTP verification attempts failed');
-        return false;
+        
+        console.log(`SMTP server connection successful with ${type} configuration`);
+        transporterIndex = i;
+        return true;
+      } catch (error) {
+        console.log(`${type} transporter verification failed:`, error.message);
+        if (i < transporterTypes.length - 1) {
+          console.log('Trying next transporter configuration...');
+          continue;
+        }
       }
+    }
+    
+    if (attempt < retries) {
+      console.log(`All transporter configurations failed on attempt ${attempt}, retrying in 2s...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      console.error('All SMTP verification attempts failed with all transporter configurations');
+      return false;
     }
   }
   return false;
 };
 
-// Verify connection on startup
-verifyTransporter();
+// Test email connection and provide status
+const testEmailConnection = async () => {
+  console.log('=== Email Connection Test ===');
+  console.log('Environment:', process.env.NODE_ENV || 'development');
+  console.log('Email User:', process.env.EMAIL_USER ? `${process.env.EMAIL_USER.substring(0, 3)}***@${process.env.EMAIL_USER.split('@')[1]}` : 'NOT SET');
+  console.log('Email App Password:', process.env.EMAIL_APP_PASSWORD ? 'SET' : 'NOT SET');
+  
+  const isConnected = await verifyTransporter();
+  
+  if (isConnected) {
+    console.log('✅ Email system is ready');
+  } else {
+    console.log('❌ Email system failed to connect');
+    console.log('💡 Troubleshooting tips:');
+    console.log('   1. Check EMAIL_USER and EMAIL_APP_PASSWORD environment variables');
+    console.log('   2. Verify Gmail App Password is correct');
+    console.log('   3. Check if Gmail 2FA is enabled');
+    console.log('   4. Verify network connectivity to smtp.gmail.com');
+    console.log('   5. Check if port 587 or 465 is blocked by firewall');
+  }
+  console.log('=============================');
+};
+
+// Test connection on startup
+testEmailConnection();
 
 // Get the primary frontend URL (first URL in the list)
 const getPrimaryFrontendUrl = () => {
@@ -695,7 +769,7 @@ const sendVerificationEmail = async (email, token) => {
               <p style="margin-bottom: 16px;">If the button above doesn't work, copy and paste this URL into your browser:</p>
               <div class="link-container">
                 <a href="${verificationUrl}" class="link">${verificationUrl}</a>
-              </div>
+                </div>
               
               <p class="note">If you didn't create an account with CSBank, you can safely ignore this email.</p>
             </div>
@@ -710,7 +784,7 @@ const sendVerificationEmail = async (email, token) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await currentTransporter.sendMail(mailOptions);
     return true;
   } catch (error) {
     console.error('Send verification email error:', error);
@@ -904,7 +978,7 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await currentTransporter.sendMail(mailOptions);
     return true;
   } catch (error) {
     console.error('Send password reset email error:', error);
@@ -931,7 +1005,7 @@ const sendNotificationEmail = async ({ to, subject, type, data }) => {
         html
       };
 
-      await transporter.sendMail(mailOptions);
+      await currentTransporter.sendMail(mailOptions);
       console.log(`Email sent successfully to ${to} on attempt ${attempt}`);
       return true;
     } catch (error) {
