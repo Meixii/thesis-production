@@ -315,7 +315,250 @@ const SectionStudentDashboard = () => {
         ) : dueDetails ? (
           <div className="space-y-6">
             {/* Due Details Content */}
-            {/* ... (keep the existing due details modal content) ... */}
+            <div className="space-y-6">
+              {/* Header Section */}
+              <div className="text-center sm:text-left">
+                <h4 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-300 bg-clip-text text-transparent">{dueDetails.title}</h4>
+                <p className="mt-2 text-sm sm:text-base text-neutral-600 dark:text-neutral-400">{dueDetails.description}</p>
+              </div>
+
+              {/* Amount Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Total Amount</div>
+                    <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-lg sm:text-xl font-bold text-neutral-900 dark:text-white">₱{dueDetails.totalAmountDue.toFixed(2)}</div>
+                </div>
+
+                <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Amount Paid</div>
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">₱{dueDetails.amountPaid.toFixed(2)}</div>
+                </div>
+
+                <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Remaining</div>
+                    <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">₱{dueDetails.remaining.toFixed(2)}</div>
+                </div>
+              </div>
+
+              {/* Status and Details Section */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Status</div>
+                    <div className="flex items-center space-x-2">
+                      {dueDetails.payments && dueDetails.payments.some(p => p.status === 'pending') && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Pending
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
+                        ${dueDetails.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          : dueDetails.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          : dueDetails.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'}
+                      `}>
+                        {dueDetails.status.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Progress Bar */}
+                  <div className="mt-4">
+                    <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${
+                          dueDetails.status === 'paid' ? 'bg-green-500'
+                            : dueDetails.status === 'partially_paid' ? 'bg-yellow-500'
+                            : dueDetails.status === 'overdue' ? 'bg-red-500'
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${(dueDetails.amountPaid / dueDetails.totalAmountDue) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  {/* Payment Summary */}
+                  {dueDetails.payments && dueDetails.payments.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Recent Payments:</div>
+                      {dueDetails.payments.slice(0, 2).map((payment, index) => (
+                        <div key={index} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center space-x-1.5">
+                            <div className={`w-2 h-2 rounded-full ${
+                              payment.status === 'pending' ? 'bg-yellow-500'
+                                : payment.status === 'verified' ? 'bg-green-500'
+                                : 'bg-red-500'
+                            }`} />
+                            <span className="text-neutral-600 dark:text-neutral-400">
+                              ₱{payment.amount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="text-neutral-500 dark:text-neutral-400">
+                            {new Date(payment.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {dueDetails.dueDate && (
+                  <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Due Date</div>
+                      <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-neutral-900 dark:text-white">
+                      {new Date(dueDetails.dueDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Method Section */}
+              {dueDetails.paymentMethodRestriction && (
+                <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Payment Method</div>
+                    <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-neutral-900 dark:text-white">
+                    {dueDetails.paymentMethodRestriction.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Only
+                  </div>
+                </div>
+              )}
+
+              {/* Payment History Section */}
+              {dueDetails.paymentHistory && dueDetails.paymentHistory.length > 0 && (
+                <div className="bg-gradient-to-br from-neutral-50/80 to-neutral-100/80 dark:from-neutral-800/50 dark:to-neutral-700/50 p-4 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Payment History</div>
+                    <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {dueDetails.paymentHistory.map((payment: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-xl">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            payment.status === 'pending' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : payment.status === 'verified' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                          }`}>
+                            {payment.status === 'pending' ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            ) : payment.status === 'verified' ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-neutral-900 dark:text-white">
+                              ₱{payment.amount.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                              {new Date(payment.date).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            : payment.status === 'verified' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                          }`}>
+                            {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                          </span>
+                          {payment.paymentMethod && (
+                            <div className="ml-2 w-6 h-6">
+                              <img 
+                                src={`/images/${payment.paymentMethod.toLowerCase()}-icon.png`}
+                                alt={payment.paymentMethod}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending Payment Alert */}
+              {dueDetails.paymentHistory && dueDetails.paymentHistory.some((payment: any) => payment.status === 'pending') && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-xl p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Pending Payment</h3>
+                      <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
+                        <p>Your payment is pending verification from the treasurer. This may take 1-2 business days.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Make Payment Button */}
+              {dueDetails.remaining > 0 && (
+                <div className="mt-6">
+                  <button
+                    onClick={() => setPaymentModalOpen(true)}
+                    className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-sm text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 dark:from-primary-500 dark:to-primary-600 dark:hover:from-primary-600 dark:hover:to-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-neutral-800 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Make Payment
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </Modal>

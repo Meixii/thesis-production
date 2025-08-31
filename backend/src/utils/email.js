@@ -24,8 +24,13 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_APP_PASSWORD
   },
   tls: {
-    rejectUnauthorized: true
+    rejectUnauthorized: true,
+    ciphers: 'SSLv3'
   },
+  // Connection timeout settings
+  connectionTimeout: 60000, // 60 seconds
+  greetingTimeout: 30000,   // 30 seconds
+  socketTimeout: 60000,     // 60 seconds
   // Add these important headers to improve deliverability
   headers: {
     'X-Priority': '3',
@@ -50,14 +55,36 @@ transporter.use('compile', (mail, callback) => {
   callback();
 });
 
-// Add email verification
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log('SMTP server connection error:', error);
-  } else {
-    console.log('SMTP server connection successful');
+// Add email verification with retry
+const verifyTransporter = async (retries = 3) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await new Promise((resolve, reject) => {
+        transporter.verify(function (error, success) {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(success);
+          }
+        });
+      });
+      console.log('SMTP server connection successful');
+      return true;
+    } catch (error) {
+      console.log(`SMTP verification attempt ${attempt} failed:`, error.message);
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.error('All SMTP verification attempts failed');
+        return false;
+      }
+    }
   }
-});
+  return false;
+};
+
+// Verify connection on startup
+verifyTransporter();
 
 // Get the primary frontend URL (first URL in the list)
 const getPrimaryFrontendUrl = () => {
@@ -886,26 +913,42 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
 };
 
 const sendNotificationEmail = async ({ to, subject, type, data }) => {
-  try {
-    const content = getNotificationTemplate(type, data);
-    const html = getBaseEmailTemplate(content);
-    
-    const mailOptions = {
-      from: {
-        name: 'Mika from CSBank',
-        address: process.env.EMAIL_USER
-      },
-      to,
-      subject,
-      html
-    };
+  const maxRetries = 3;
+  let lastError;
 
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Send notification email error:', error);
-    throw error;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const content = getNotificationTemplate(type, data);
+      const html = getBaseEmailTemplate(content);
+      
+      const mailOptions = {
+        from: {
+          name: 'Mika from CSBank',
+          address: process.env.EMAIL_USER
+        },
+        to,
+        subject,
+        html
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(`Email sent successfully to ${to} on attempt ${attempt}`);
+      return true;
+    } catch (error) {
+      lastError = error;
+      console.error(`Email attempt ${attempt} failed for ${to}:`, error.message);
+      
+      if (attempt < maxRetries) {
+        // Wait before retrying (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  console.error(`All ${maxRetries} attempts failed for ${to}. Last error:`, lastError);
+  throw lastError;
 };
 
 module.exports = {
