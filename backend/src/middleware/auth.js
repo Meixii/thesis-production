@@ -43,8 +43,20 @@ const isTreasurer = async (req, res, next) => {
   }
 };
 
+const isStudent = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ error: 'Access denied. Student role required.' });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Server error while checking role.' });
+  }
+};
+
 module.exports = {
   authenticateToken,
   isFinanceCoordinator,
-  isTreasurer
+  isTreasurer,
+  isStudent
 }; 

@@ -18,6 +18,9 @@ router.post('/users', adminController.createUser);
 router.put('/users/:userId/role', adminController.updateUserRole);
 router.delete('/users/:userId', adminController.deleteUser);
 
+// Reset user password route
+router.put('/users/:userId/reset-password', authenticateToken, adminController.resetUserPassword);
+
 // Group management routes
 router.get('/groups', adminController.getGroups);
 router.post('/groups', adminController.createGroup);

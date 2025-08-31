@@ -300,7 +300,7 @@ const getBaseEmailTemplate = (content) => {
           <div class="divider"></div>
           <div class="footer">
             <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
-            <p>How about we drink some coffee?</p>
+            <p>I finally fixed the email :)</p>
           </div>
         </div>
       </div>
@@ -329,11 +329,11 @@ const getNotificationTemplate = (type, data) => {
         
         <div class="info-box">
           <div class="info-row">
-            <span class="info-label">Due Date</span>
+            <span class="info-label">Due Date: </span>
             <span class="info-value">${new Date(data.dueDate).toLocaleDateString()}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Created By</span>
+            <span class="info-label">Created By: </span>
             <span class="info-value">${data.creatorName}</span>
           </div>
         </div>
@@ -640,7 +640,7 @@ const sendVerificationEmail = async (email, token) => {
             
             <div class="footer">
               <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
-              <p>How about we drink some coffee?</p>
+              <p>I finally fixed the email :)</p>
             </div>
           </div>
         </body>
@@ -834,7 +834,7 @@ const sendPasswordResetEmail = async (email, token, firstName) => {
             
             <div class="footer">
               <p>&copy; ${new Date().getFullYear()} CSBank by Zen Garden. All rights reserved.</p>
-              <p>How about we drink some coffee?</p>
+              <p>I finally fixed the email :)</p>
             </div>
           </div>
         </body>

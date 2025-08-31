@@ -345,6 +345,80 @@ const notifyUpcomingDueDeadline = async (dueData) => {
 };
 
 /**
+ * Notify about expense request status change
+ * @param {Object} data - Notification data
+ * @param {number} data.expenseId - Expense request ID
+ * @param {number} data.userId - User ID
+ * @param {string} data.status - New status
+ */
+const notifyExpenseStatusChange = async (data) => {
+  try {
+    // Get expense request details
+    const result = await db.query(
+      `SELECT er.*, u.email, u.first_name, u.last_name
+       FROM expense_requests er
+       JOIN users u ON er.user_id = u.id
+       WHERE er.id = $1`,
+      [data.expenseId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Expense request not found');
+    }
+
+    const expense = result.rows[0];
+    let message = '';
+    let emailSubject = '';
+    let emailType = '';
+
+    switch (data.status) {
+      case 'approved':
+        message = `Your expense request "${expense.title}" for ₱${parseFloat(expense.amount).toFixed(2)} has been approved.`;
+        emailSubject = 'Expense Request Approved';
+        emailType = 'expense_approved';
+        break;
+      case 'denied':
+        message = `Your expense request "${expense.title}" for ₱${parseFloat(expense.amount).toFixed(2)} has been denied.`;
+        emailSubject = 'Expense Request Denied';
+        emailType = 'expense_denied';
+        break;
+      case 'completed':
+        message = `Your expense request "${expense.title}" has been marked as completed.`;
+        emailSubject = 'Expense Request Completed';
+        emailType = 'expense_completed';
+        break;
+      default:
+        return;
+    }
+
+    // Create in-app notification
+    await createNotification({
+      userId: data.userId,
+      message,
+      type: 'expense_status',
+      relatedEntityType: 'expense',
+      relatedEntityId: data.expenseId
+    });
+
+    // Send email notification
+    await sendNotificationEmail({
+      to: expense.email,
+      subject: emailSubject,
+      type: emailType,
+      data: {
+        userName: expense.first_name,
+        expenseTitle: expense.title,
+        amount: parseFloat(expense.amount),
+        status: data.status
+      }
+    });
+  } catch (error) {
+    console.error('Error notifying expense status change:', error);
+    throw error;
+  }
+};
+
+/**
  * Get user notifications
  * @param {number} userId - User ID
  * @param {Object} options - Query options
@@ -457,6 +531,7 @@ module.exports = {
   notifyPaymentVerified,
   notifyPaymentRejected,
   notifyUpcomingDueDeadline,
+  notifyExpenseStatusChange,
   getUserNotifications,
   markNotificationsAsRead,
   getUnreadCount,

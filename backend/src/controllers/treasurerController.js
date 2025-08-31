@@ -2336,6 +2336,7 @@ const batchUpdateUserPaymentStatus = async (req, res) => {
  * @param {Object} res - Express response object
  */
 const addStudentsToDue = async (req, res) => {
+  const client = await db.connect();
   try {
     if (req.user.role !== 'treasurer') {
       return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
@@ -2350,8 +2351,6 @@ const addStudentsToDue = async (req, res) => {
       return res.status(400).json({ error: 'Student IDs array is required and must not be empty' });
     }
 
-    // Start transaction
-    const client = await db.connect();
     try {
       await client.query('BEGIN');
 
@@ -2415,12 +2414,12 @@ const addStudentsToDue = async (req, res) => {
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
-    } finally {
-      client.release();
     }
   } catch (error) {
     console.error('Add students to due error:', error);
-    res.status(500).json({ error: 'Server error while adding students to due' });
+    res.status(500).json({ error: 'Failed to add students to due', details: error.message });
+  } finally {
+    client.release();
   }
 };
 
@@ -2430,6 +2429,7 @@ const addStudentsToDue = async (req, res) => {
  * @param {Object} res - Express response object
  */
 const removeStudentsFromDue = async (req, res) => {
+  const client = await db.connect();
   try {
     if (req.user.role !== 'treasurer') {
       return res.status(403).json({ error: 'Access denied. Treasurer role required.' });
@@ -2444,8 +2444,6 @@ const removeStudentsFromDue = async (req, res) => {
       return res.status(400).json({ error: 'Student IDs array is required and must not be empty' });
     }
 
-    // Start transaction
-    const client = await db.connect();
     try {
       await client.query('BEGIN');
 
@@ -2477,12 +2475,11 @@ const removeStudentsFromDue = async (req, res) => {
         return res.status(400).json({ error: 'None of the selected students are assigned to this due' });
       }
 
-      // Delete payment allocations for these users first
+      // Delete payment allocations for these users first (use payment_allocations_dues linked via user_dues)
       await client.query(
         `DELETE FROM payment_allocations_dues 
          WHERE user_due_id IN (
-           SELECT id FROM user_dues 
-           WHERE due_id = $1 AND user_id = ANY($2)
+           SELECT id FROM user_dues WHERE due_id = $1 AND user_id = ANY($2)
          )`,
         [dueId, existingUserIds]
       );
@@ -2498,17 +2495,17 @@ const removeStudentsFromDue = async (req, res) => {
       res.json({
         message: `Successfully removed ${existingUserIds.length} students from the due`,
         removed_count: existingUserIds.length,
-        not_found: notFoundIds.length
+        not_found_count: notFoundIds.length
       });
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
-    } finally {
-      client.release();
     }
   } catch (error) {
     console.error('Remove students from due error:', error);
-    res.status(500).json({ error: 'Server error while removing students from due' });
+    res.status(500).json({ error: 'Failed to remove students from due', details: error.message });
+  } finally {
+    client.release();
   }
 };
 

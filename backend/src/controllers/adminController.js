@@ -664,6 +664,50 @@ const exportDatabase = async (req, res) => {
   }
 };
 
+/**
+ * Reset a user's password to a default value (admin only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const resetUserPassword = async (req, res) => {
+  try {
+    // Only admin can access
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    }
+
+    const { userId } = req.params;
+    const defaultPassword = '@BSCS4Bank';
+
+    // Check if user exists
+    const userCheck = await db.query(
+      'SELECT id, email FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Hash the default password
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // Update user password
+    await db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [hashedPassword, userId]
+    );
+
+    res.json({
+      message: 'User password reset successfully',
+      email: userCheck.rows[0].email
+    });
+  } catch (error) {
+    console.error('Reset user password error:', error);
+    res.status(500).json({ error: 'Server error while resetting user password' });
+  }
+};
+
 module.exports = {
   getThesisWeeks,
   upsertThesisWeek,
@@ -677,4 +721,5 @@ module.exports = {
   createUser,
   deleteUser,
   exportDatabase,
+  resetUserPassword
 };

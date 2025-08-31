@@ -568,7 +568,7 @@ const TreasurerDashboard = () => {
         </div>
 
                  {/* Charts Row */}
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 text-white">
            {/* Collection Trend Chart */}
            <ShadcnBarChart
              data={stats.collection_trend.labels.map((label, index) => ({
@@ -583,7 +583,7 @@ const TreasurerDashboard = () => {
              }}
              title="Collection Trend"
              description="Monthly collection statistics"
-             className="shadow-lg hover:shadow-xl transition-shadow duration-300"
+             className="shadow-lg hover:shadow-xl transition-shadow duration-300 text-white"
              height={280}
            />
 

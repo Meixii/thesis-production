@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const { joinGroup, getDashboardData, getMyDues, getMyDueDetails, payDue, getMyPaymentHistory, getPayableWeeks, getPayableExpenses } = require('../controllers/studentController');
+const expenseRoutes = require('./student/expenses');
 const multer = require('multer');
 
 // Configure multer for memory storage (5MB limit, images only)
@@ -43,5 +44,8 @@ router.get('/payable-weeks', getPayableWeeks);
 
 // New route to get payable distributed expenses for the student
 router.get('/payable-expenses', getPayableExpenses);
+
+// Expense routes
+router.use('/expenses', expenseRoutes);
 
 module.exports = router; 

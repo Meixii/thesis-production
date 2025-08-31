@@ -56,6 +56,9 @@ const UsersAdmin = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [groupFilter, setGroupFilter] = useState<string>('all');
+  // Add a new state for tracking user password reset
+  const [userToResetPassword, setUserToResetPassword] = useState<number | null>(null);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -218,6 +221,33 @@ const UsersAdmin = () => {
     } catch (error) {
       console.error('Error adding user:', error);
       showToast('Failed to add user', 'error');
+    }
+  };
+
+  // Add a new handler for resetting user password
+  const handleResetUserPassword = async () => {
+    if (!userToResetPassword) return;
+    try {
+      setIsResetPasswordModalOpen(false);
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/api/admin/users/${userToResetPassword}/reset-password`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to reset user password');
+      }
+      
+      const data = await response.json();
+      showToast(`Password reset successfully for ${data.email}`, 'success');
+    } catch (error) {
+      console.error('Error resetting user password:', error);
+      showToast('Failed to reset user password', 'error');
     }
   };
 
@@ -517,6 +547,13 @@ const UsersAdmin = () => {
                       Edit
                     </button>
                     <button
+                      onClick={() => { setUserToResetPassword(user.id); setIsResetPasswordModalOpen(true); }}
+                      className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 mr-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isUserSelectMode}
+                    >
+                      Reset Password
+                    </button>
+                    <button
                       onClick={() => { setUserToDelete(user.id); setIsDeleteUserModalOpen(true); }}
                       className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isUserSelectMode}
@@ -628,6 +665,16 @@ const UsersAdmin = () => {
         message={`Are you sure you want to delete ${selectedUsers.length} selected user(s)? This action cannot be undone.`}
         confirmText="Delete All"
         confirmVariant="secondary"
+      />
+      {/* Reset User Password Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isResetPasswordModalOpen}
+        onClose={() => setIsResetPasswordModalOpen(false)}
+        onConfirm={handleResetUserPassword}
+        title="Reset User Password"
+        message="Are you sure you want to reset this user's password to the default value? The user will need to change their password after logging in."
+        confirmText="Reset Password"
+        confirmVariant="warning"
       />
     </div>
   );

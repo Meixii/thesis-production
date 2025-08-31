@@ -43,6 +43,7 @@ import LoanManagement from './components/fc/LoanManagement';
 import LoanDisbursement from './components/fc/LoanDisbursement';
 import PayExpense from './pages/PayExpense';
 import TreasurerSettings from './components/treasurer/TreasurerSettings';
+import TreasurerExpenses from './pages/treasurer/TreasurerExpenses';
 // import Notifications from './pages/Notifications';
 
 function RequireGroup({ children }: { children: ReactNode }) {
@@ -256,6 +257,16 @@ function App() {
               <ProtectedRoute role="treasurer">
                 <RequireGroup>
                   <ChecklistDetails />
+                </RequireGroup>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/treasurer/expenses"
+            element={
+              <ProtectedRoute role="treasurer">
+                <RequireGroup>
+                  <TreasurerExpenses />
                 </RequireGroup>
               </ProtectedRoute>
             }

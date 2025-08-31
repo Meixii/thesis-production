@@ -3,6 +3,7 @@ const router = express.Router();
 const treasurerController = require('../controllers/treasurerController');
 const { authenticateToken, isTreasurer } = require('../middleware/auth');
 const { getMembers } = require('../controllers/treasurerController');
+const expenseRoutes = require('./treasurer/expenses');
 
 // All routes require authentication and treasurer role
 router.use(authenticateToken);
@@ -54,5 +55,8 @@ router.patch('/checklists/:checklistId/items/:itemId', treasurerController.updat
 router.delete('/checklists/:checklistId/items/:itemId', treasurerController.deleteChecklistItem);
 router.patch('/checklists/:checklistId/items/:itemId/users/:userId', treasurerController.updateChecklistItemStatus);
 router.delete('/checklists/:checklistId', treasurerController.deleteChecklist);
+
+// Expense management
+router.use('/expenses', expenseRoutes);
 
 module.exports = router; 
